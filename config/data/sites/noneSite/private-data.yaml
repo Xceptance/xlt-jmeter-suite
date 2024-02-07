@@ -1,0 +1,7 @@
+# This file should contain all the private data that, for a normal project should not not leak into the standard repo
+# We have set .gitignore for that aka new private-data.yaml files are ignored.
+
+general:
+    authorization: Basic cG9zdG1hbjpwYXNzd29yZA== 
+    userAgent: "XLT - Load Test Suite (https://www.xceptance.com/en/xlt/; https://github.com/Xceptance/rest-load-test-suite)"
+    

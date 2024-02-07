@@ -1,0 +1,45 @@
+# This is the general data section. All this here also exists as plain properties,
+# for instance the closeWebClient configuration is accessible via getProperty("general.closeWebClient") or via Configuration
+# with name general.closeWebClient there as well.
+
+general:
+   closeWebClient: false
+   clearCookies: false
+   userAgent: XLT JMeter Suite (https://github.com/Xceptance/xlt-jmeter-extension)
+
+jsonplaceholder:
+   host: https://jsonplaceholder.typicode.com
+   get:
+      count.range: 3-5
+
+# Definition of all available sites
+sites:
+    -   id: US # id can be freely chosen and will be attached on the testcases in the report
+        active: true # in case you want to exclude it from a run 
+        locale: en_US # this is the language to be used
+        region: NorthAmerica # this is something like country or market, depends what you might need in the test cases to differentiate
+        marketshare: 60 # this defines how many percent of all running test will use this site
+    -   id: DE
+        active: true 
+        locale: de_DE
+        region: Europe
+        marketshare: 40
+    -   id: noneSite # this is a placeholder, to allow site independent test case configurations.
+
+# The properties per site. This is automatically handled by
+# the suite and transferred into the property without site.DE for 
+# instance when this site is selected and loaded. 
+# This is just an example to show this possibility.
+# You can also place this in the site specific property file such as
+# site.yaml and define values there (see sites/US/site.yaml).
+site:
+    DE:
+        general:
+           url:  "https://de.${general.host}"
+        wiki:
+           articleCount: 
+              distribution: 1/10 2/10 3/80 # in 10% of all cases this property return 1, in 10% it returns 2 ans in 80% it returs 3 
+           continueSearch: 
+              probability: 10
+
+# end of file      
