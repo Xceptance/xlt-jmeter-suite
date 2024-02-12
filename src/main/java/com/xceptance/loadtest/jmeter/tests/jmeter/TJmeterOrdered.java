@@ -97,7 +97,7 @@ public class TJmeterOrdered extends JMeterTestCase implements NonSiteRelatedTest
         {
             try
             {
-                buildRequest(p.firstClass, p.secondClass);
+                buildRequest(p.getFirstClass(), p.getSecondClass());
             } 
             catch (Throwable e)
             {

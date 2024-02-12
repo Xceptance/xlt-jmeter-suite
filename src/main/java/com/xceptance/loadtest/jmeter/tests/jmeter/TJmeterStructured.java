@@ -10,10 +10,13 @@ import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.jmeter.config.Arguments;
 import org.apache.jmeter.control.TransactionController;
+import org.apache.jmeter.extractor.RegexExtractor;
 import org.apache.jmeter.protocol.http.control.HeaderManager;
 import org.apache.jmeter.protocol.http.sampler.HTTPSamplerProxy;
 import org.apache.jmeter.save.SaveService;
@@ -28,10 +31,10 @@ import com.xceptance.loadtest.api.data.NonSiteRelatedTest;
 import com.xceptance.loadtest.api.data.SearchClass;
 import com.xceptance.loadtest.api.tests.JMeterTestCase;
 import com.xceptance.loadtest.api.util.Actions;
-import com.xceptance.loadtest.api.util.HttpRequestJmeter;
 import com.xceptance.loadtest.api.util.SearchHelper;
 import com.xceptance.loadtest.api.util.SearchHelperStructured;
 import com.xceptance.xlt.engine.httprequest.HttpRequest;
+import com.xceptance.xlt.engine.httprequest.HttpResponse;
 
 
 public class TJmeterStructured extends JMeterTestCase implements NonSiteRelatedTest
@@ -39,7 +42,7 @@ public class TJmeterStructured extends JMeterTestCase implements NonSiteRelatedT
     private HashTree tree;
     private String scheme;
     private String jmeterVariable = "${%s}";
-    private Map<String, String> argumentsAsMap;
+    private Map<String, String> variableMap;
 
     public TJmeterStructured()
     {
@@ -51,13 +54,17 @@ public class TJmeterStructured extends JMeterTestCase implements NonSiteRelatedT
         JMeterUtils.loadJMeterProperties(jmeterPorperties.get().getAbsolutePath());
         JMeterUtils.setProperty("upgrade_properties", upgradeProperties.get().getAbsolutePath());
         JMeterUtils.setProperty("saveservice_properties", saveServiceProperties.get().getAbsolutePath());
+
+        String filename = "GuestOrder.jmx";
         
 //        Optional<File> testPlan = DataFileProvider.dataFile("SimpleAddToCart.jmx");
 //        Optional<File> testPlan = DataFileProvider.dataFile("Test Plan.jmx");
-        Optional<File> testPlan = DataFileProvider.dataFile("GuestOrder.jmx");
+        Optional<File> testPlan = DataFileProvider.dataFile(filename);
         
         try
         {
+            Assert.assertTrue("The "+ filename +" file could not be found.", testPlan.isPresent());
+            
             // load the jmx file into a HashTree structure
             tree = SaveService.loadTree(testPlan.get());
         } 
@@ -66,7 +73,8 @@ public class TJmeterStructured extends JMeterTestCase implements NonSiteRelatedT
             e.printStackTrace();
         }
         
-        setTestName(getTestName() + "_" + "SimpleAddToCart");
+        // remove file ending for naming 
+        setTestName(getTestName() + "_" + filename.replace(".jmx", ""));
     }
     
     /**
@@ -83,8 +91,8 @@ public class TJmeterStructured extends JMeterTestCase implements NonSiteRelatedT
         // value from test configuration, before request details
         Collection<Arguments> argumentResult = argumentSearch.getSearchResults();
         Arguments next = argumentResult.iterator().next();
-        argumentsAsMap = next.getArgumentsAsMap();
-        scheme = argumentsAsMap.get("scheme");
+        variableMap = next.getArgumentsAsMap();
+        scheme = variableMap.get("scheme");
         
         // TODO properties values for allowed protocols
         Assert.assertTrue("Only HTTP or HTTPS are allowed as protocol.", PROTOCOLS.test(scheme));
@@ -99,38 +107,40 @@ public class TJmeterStructured extends JMeterTestCase implements NonSiteRelatedT
         
         entrySet.forEach(i -> 
         {
-          try
-          {
-              String name = i.getKey().getName();
-              Actions.run(name, t ->
-              {
-                  i.getValue().forEach(p -> 
-                  {
-                      try
-                      {
-                          buildStrucutredRequest(p.firstClass, p.secondClass, t);
-                      } 
-                      catch (Throwable e)
-                      {
-                          // TODO Auto-generated catch block
-                          e.printStackTrace();
-                      }
-                  });
-              });
+            String name = i.getKey().getName();
+            try
+            {
+                Actions.run(name, t ->
+                {
+                    i.getValue().forEach(p -> 
+                    {
+                        try
+                        {
+                            buildStrucutredRequest(p, t);
+                        } 
+                        catch (Throwable e)
+                        {
+                            e.printStackTrace();
+                        }
+                    });
+                });
             } 
             catch (Throwable e)
             {
-                // TODO Auto-generated catch block
                 e.printStackTrace();
             }
         });
     }
     
-    public void buildStrucutredRequest(HTTPSamplerProxy requestData, HeaderManager headerData, String t) throws Throwable
+    public void buildStrucutredRequest(SearchClass<HTTPSamplerProxy, HeaderManager> data, String t) throws Throwable
     {
-        String domain = requestData.getDomain();
-        String path = requestData.getPath();
-        String method = requestData.getMethod();
+        HTTPSamplerProxy firstClass = data.getFirstClass();
+        HeaderManager secondClass = data.getSecondClass();
+        List<RegexExtractor> regexData = data.getRegexData();
+        
+        String domain = firstClass.getDomain();
+        String path = firstClass.getPath();
+        String method = firstClass.getMethod();
         
         // TODO url builder?
         HttpRequest request = new HttpRequest()
@@ -138,62 +148,42 @@ public class TJmeterStructured extends JMeterTestCase implements NonSiteRelatedT
                 .baseUrl(scheme + "://" + domain + path)
                 .method(HttpMethod.valueOf(method));
         
-        // transform header keys/values from loaded data to request confirm data
-        CollectionProperty headers = headerData.getHeaders();
-        headers.forEach(p -> 
+        addHeaderData(request, secondClass);
+        addArgumentData(request, firstClass);
+        
+        HttpResponse response = request.fire();   
+        
+        regexData.forEach(r -> 
         {
-            // remove name from the combined value attribute
-            request.header(p.getName(), p.getStringValue().replace(p.getName(), "")); 
-            Set<String> keySet = argumentsAsMap.keySet();
+            String contentAsString = response.getContentAsString();
+            // random value is 0 in JMeter, we simply take the first encounter in this case
+            int matchNumber = r.getMatchNumber();
+            Pattern p = Pattern.compile(r.getRegex());
+            Matcher matcher = p.matcher(contentAsString);
             
-            keySet.forEach(k ->
+            String group = "";
+            if (matcher.find())
             {
-               if (p.getStringValue().contains(k))
-               {
-                   // remove name from the combined value attribute
-                   String preRefinedString = p.getStringValue().replace(p.getName(), ""); 
-                   // replace and add jmeter variables
-                   String replace = StringUtils.replaceOnceIgnoreCase(preRefinedString, 
-                                                                      String.format(jmeterVariable, k),
-                                                                      argumentsAsMap.get(k));
-                   request.header(p.getName(), replace);
-               }
-            });
+                group = matcher.group(matchNumber == 0 ? 1 : matchNumber);
+            }
+            else
+            {
+                Assert.fail(r.getDefaultValue());
+            }
+            // save the reference (key) and the extracted value in the arguments map
+            variableMap.put(String.format(jmeterVariable, r.getRefName()), group);
         });
-        
-        // check and add arguments if there are any
-        Arguments arguments = requestData.getArguments();
-        if (arguments.getArgumentCount() > 0)
-        {
-            Map<String, String> argumentsAsMap = arguments.getArgumentsAsMap();
-            for (Map.Entry<String, String> entry : argumentsAsMap.entrySet())
-            {
-                request.param(entry.getKey(), entry.getValue());
-            };
-        }
-        
-        request.fire();   
     }
     
-    public void buildRequest(HTTPSamplerProxy requestData, HeaderManager headerData) throws Throwable
+    private HttpRequest addHeaderData(HttpRequest request, HeaderManager headerData)
     {
-        String domain = requestData.getDomain();
-        String path = requestData.getPath();
-        String method = requestData.getMethod();
-        
-        // TODO url builder?
-        HttpRequestJmeter request = new HttpRequestJmeter(requestData.getName())
-                .baseUrl(scheme + "://" + domain + path)
-                .method(method)
-                .assertStatus(200);
-        
         // transform header keys/values from loaded data to request confirm data
         CollectionProperty headers = headerData.getHeaders();
         headers.forEach(p -> 
         {
             // remove name from the combined value attribute
             request.header(p.getName(), p.getStringValue().replace(p.getName(), "")); 
-            Set<String> keySet = argumentsAsMap.keySet();
+            Set<String> keySet = variableMap.keySet();
             
             keySet.forEach(k ->
             {
@@ -204,12 +194,16 @@ public class TJmeterStructured extends JMeterTestCase implements NonSiteRelatedT
                    // replace and add jmeter variables
                    String replace = StringUtils.replaceOnceIgnoreCase(preRefinedString, 
                                                                       String.format(jmeterVariable, k),
-                                                                      argumentsAsMap.get(k));
+                                                                      variableMap.get(k));
                    request.header(p.getName(), replace);
                }
             });
         });
-        
+        return request;
+    }
+    
+    private HttpRequest addArgumentData(HttpRequest request, HTTPSamplerProxy requestData)
+    {
         // check and add arguments if there are any
         Arguments arguments = requestData.getArguments();
         if (arguments.getArgumentCount() > 0)
@@ -217,10 +211,17 @@ public class TJmeterStructured extends JMeterTestCase implements NonSiteRelatedT
             Map<String, String> argumentsAsMap = arguments.getArgumentsAsMap();
             for (Map.Entry<String, String> entry : argumentsAsMap.entrySet())
             {
-                request.param(entry.getKey(), entry.getValue());
+                if (variableMap.containsKey(entry.getValue()))
+                {
+                    request.param(entry.getKey(), variableMap.get(entry.getValue()));
+                }
+                else
+                {
+                    request.param(entry.getKey(), entry.getValue());
+                }
             };
         }
-        request.run();
+        return request;
     }
     
     /**
