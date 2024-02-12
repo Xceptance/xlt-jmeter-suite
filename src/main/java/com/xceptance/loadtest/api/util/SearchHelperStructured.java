@@ -2,14 +2,11 @@ package com.xceptance.loadtest.api.util;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 
-import org.apache.jmeter.extractor.RegexExtractor;
 import org.apache.jorphan.collections.HashTree;
 import org.apache.jorphan.collections.HashTreeTraverser;
-import org.apache.jorphan.collections.ListedHashTree;
 
 import com.xceptance.loadtest.api.data.SearchClass;
 
@@ -20,25 +17,17 @@ import com.xceptance.loadtest.api.data.SearchClass;
  */
 public class SearchHelperStructured<R, T, K> implements HashTreeTraverser 
 {
-    private final List<T> objectsOfClass = new ArrayList<>();
-    private final List<K> objectsOfClass2 = new ArrayList<>();
-    
     // generic list of the 2 searched classes
-    private final List<SearchClass<T, K>> result = new ArrayList<>();
+    private List<SearchClass<T, K>> result;
     // structured list elements, in accordance to appearance in the XML file
     private final LinkedHashMap<R, List<SearchClass<T, K>>> structuredList = new LinkedHashMap<>();
     
-    private final IdentityHashMap<Object, ListedHashTree> subTrees = new IdentityHashMap<>();
-
     private final Class<T> firstClass;
     private final Class<K> secondClass;
     private final Class<R> rootClass;
-//    private final RegexExtractor regexClass;
     
-    private int index = 0;
-    
-    private boolean previousClassFound = false;
     private R currentRootNode;
+    private SearchClass<T, K> searchClass;
 
     /**
      * Creates an instance of SearchByClass, and sets the Class to be searched
@@ -77,70 +66,35 @@ public class SearchHelperStructured<R, T, K> implements HashTreeTraverser
         return structuredList;
     }
 
-    /**
-     * Given a specific found node, this method will return the sub tree of that
-     * node.
-     *
-     * @param root
-     *            the node for which the sub tree is requested
-     * @return HashTree
-     */
-    public HashTree getSubTree(Object root) 
-    {
-        return subTrees.get(root);
-    }
-    
-    public IdentityHashMap<Object, ListedHashTree> getAllSubtress()
-    {
-        return subTrees;
-    }
-
     /** {@inheritDoc} */
     @SuppressWarnings("unchecked")
     @Override
     public void addNode(Object node, HashTree subTree) 
     {
-        // if none of the searched nodes are found and we have encountered a root node, we write the found data
-        if (currentRootNode != null &&
-            !firstClass.isAssignableFrom(node.getClass()) &&
-            !secondClass.isAssignableFrom(node.getClass()) &&
-            !result.isEmpty())
-        {
-            // copy of the results for storing it into the map
-            List<SearchClass<T, K>> currentState = new ArrayList<SearchClass<T, K>>(result);
-            structuredList.put((R)currentRootNode, currentState);
-            result.clear();
-        }
-        
+        // create the root node and allocate memory for results
         if (rootClass.isAssignableFrom(node.getClass()))
         {
-            currentRootNode = (R)node;
+            currentRootNode = (R) node;
+            result = new ArrayList<>();
+            structuredList.put((R) currentRootNode, result);
         }
         
         // n to n correlation, in assumption every first class has a child class which is searched for
         if (firstClass.isAssignableFrom(node.getClass())) 
         {
-            objectsOfClass.add((T) node);
-            // TODO check if needed
-            ListedHashTree tree = new ListedHashTree(node);
-            tree.set(node, subTree);
-            subTrees.put(node, tree);
-            previousClassFound = true;
+            searchClass = new SearchClass<T,K>();
+            searchClass.setFirstClass((T) node);
+            result.add(searchClass);
         }
         else if (secondClass.isAssignableFrom(node.getClass()))
         {
-            objectsOfClass2.add((K) node);
-            // TODO check if needed
-            ListedHashTree tree = new ListedHashTree(node);
-            tree.set(node, subTree);
-            subTrees.put(node, tree);
-            
-            if (previousClassFound)
-            {
-                result.add(new SearchClass<T,K>((T)objectsOfClass.get(index), (K)objectsOfClass2.get(index)));
-                previousClassFound = false;
-                index++;
-            }
+            searchClass.setSecondClass((K) node);
+        }
+        // if we have a RegexExtractor in place
+        else if (searchClass != null && 
+                 searchClass.getRegexClass().isAssignableFrom(node.getClass()))
+        {
+            searchClass.setRegexExtractor((searchClass.getRegexClass().cast(node)));
         }
     }
 
