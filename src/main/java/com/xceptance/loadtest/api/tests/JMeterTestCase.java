@@ -1,10 +1,14 @@
 package com.xceptance.loadtest.api.tests;
 
+import java.io.File;
 import java.text.MessageFormat;
+import java.util.Optional;
 
+import org.apache.jmeter.util.JMeterUtils;
 import org.junit.Before;
 import org.junit.Test;
 
+import com.xceptance.loadtest.api.data.DataFileProvider;
 import com.xceptance.loadtest.api.data.Site;
 import com.xceptance.loadtest.api.data.SiteByMarketShare;
 import com.xceptance.loadtest.api.util.Context;
@@ -15,7 +19,7 @@ import com.xceptance.xlt.engine.XltWebClient;
 import com.xceptance.xlt.engine.httprequest.HttpRequest;
 
 /**
- * Base class of a REST test
+ * Base class of a JMeter test
  *
  * @author Rene Schwietzke
  */
@@ -94,6 +98,14 @@ public abstract class JMeterTestCase extends com.xceptance.xlt.api.tests.Abstrac
     @Before
     public void init() throws Throwable
     {
+        Optional<File> jmeterPorperties = DataFileProvider.dataFileBySite(Context.getSite(), Context.configuration().jmeterFile);
+        Optional<File> upgradeProperties = DataFileProvider.dataFileBySite(Context.getSite(), Context.configuration().upgradeFile);
+        Optional<File> saveServiceProperties = DataFileProvider.dataFileBySite(Context.getSite(), Context.configuration().saveServiceFile);
+        
+        // set minimum properties for tree loading/parsing
+        JMeterUtils.loadJMeterProperties(jmeterPorperties.get().getPath());
+        JMeterUtils.setProperty("upgrade_properties", upgradeProperties.get().getPath());
+        JMeterUtils.setProperty("saveservice_properties", saveServiceProperties.get().getPath());
     }
 
     /**
