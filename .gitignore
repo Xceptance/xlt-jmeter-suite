@@ -3,9 +3,11 @@
 
 # IDE Files
 .settings
+.classpath
 
 # Results
 results
+target
 
 # Log file
 *.log
