@@ -1,6 +1,7 @@
 package com.xceptance.loadtest.jmeter.tests.jmeter;
 
 import java.io.File;
+import java.net.URL;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -12,10 +13,13 @@ import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.jmeter.config.Arguments;
 import org.apache.jmeter.control.TransactionController;
 import org.apache.jmeter.extractor.RegexExtractor;
+import org.apache.jmeter.protocol.http.control.AuthManager;
+import org.apache.jmeter.protocol.http.control.Authorization;
 import org.apache.jmeter.protocol.http.control.HeaderManager;
 import org.apache.jmeter.protocol.http.sampler.HTTPSamplerProxy;
 import org.apache.jmeter.save.SaveService;
@@ -43,13 +47,16 @@ public class TJmeter extends JMeterTestCase implements NonSiteRelatedTest
     private String jmeterVariable = "${%s}";
     private Map<String, String> variableMap;
     private String fileName;
+    private AuthManager authResults;
     
     public TJmeter()
     {
         try
         {
             super.init();
-            fileName = "GuestOrder.jmx";
+//            fileName = "CustomerAuthorization.jmx";
+//            fileName = "GuestOrder.jmx";
+            fileName = "CustomerAuthorizationExtended.jmx";
             
             Optional<File> testPlan = DataFileProvider.dataFile(fileName);
             Assert.assertTrue("The "+ fileName +" file could not be found.", testPlan.isPresent());
@@ -74,6 +81,8 @@ public class TJmeter extends JMeterTestCase implements NonSiteRelatedTest
     @Override
     public void test() throws Throwable
     {
+        // TODO: bundle and rework data acquirement 
+        
         // search the arguments, simple search
         SearchHelper<Arguments> argumentSearch = new SearchHelper<Arguments>(Arguments.class);
         tree.traverse(argumentSearch);
@@ -83,10 +92,20 @@ public class TJmeter extends JMeterTestCase implements NonSiteRelatedTest
         Arguments arguments = argumentResult.iterator().next();
         // retrieve the argument map, holds all varaibles during the execution and get dynamically updated
         variableMap = arguments.getArgumentsAsMap();
-        // get the protocol
-        scheme = variableMap.get("scheme");
         
-        // TODO properties values for allowed protocols
+        SearchHelper<AuthManager> authManager = new SearchHelper<AuthManager>(AuthManager.class);
+        tree.traverse(authManager);
+        
+        Collection<AuthManager> authManagerResults = authManager.getSearchResults();
+        if (authManagerResults != null)
+        {
+            authResults = authManagerResults.iterator().next();
+        }
+        
+        // TODO: get the protocol
+        scheme = variableMap.get("scheme") != null ? variableMap.get("scheme") : variableMap.get("protocol");
+        
+        // TODO protocols assertion
         Assert.assertTrue("Only HTTP or HTTPS are allowed as protocol.", PROTOCOLS.test(scheme));
         
         // search for given classes in order
@@ -137,10 +156,18 @@ public class TJmeter extends JMeterTestCase implements NonSiteRelatedTest
         String path = firstClass.getPath();
         String method = firstClass.getMethod();
         
+        String baseUrl = scheme + "://" + domain + path;
+        
         HttpRequest request = new HttpRequest()
                 .timerName(requestName)
-                .baseUrl(scheme + "://" + domain + path)
+                .baseUrl(baseUrl)
                 .method(HttpMethod.valueOf(method));
+        
+        if (authResults != null)
+        {
+            Authorization authForURL = authResults.getAuthForURL(new URL(baseUrl));
+            setBasicAuthenticationHeader(request, authForURL.getUser(), authForURL.getPass());
+        }
         
         // add header data
         addHeaderData(request, secondClass);
@@ -232,6 +259,19 @@ public class TJmeter extends JMeterTestCase implements NonSiteRelatedTest
             };
         }
         return request;
+    }
+    
+    public void setBasicAuthenticationHeader(HttpRequest request, final String username, final String password)
+    {
+        // Is a username for Basic Authentication configured?
+        if (StringUtils.isNotBlank(username))
+        {
+            // Set the request header.
+            final String userPass = username + ":" + password;
+            final String userPassBase64 = Base64.encodeBase64String(userPass.getBytes());
+
+            request.header("Authorization", "Basic " + userPassBase64);
+        }
     }
     
     /**
