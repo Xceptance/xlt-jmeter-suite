@@ -166,7 +166,10 @@ public class TJmeter extends JMeterTestCase implements NonSiteRelatedTest
         if (authResults != null)
         {
             Authorization authForURL = authResults.getAuthForURL(new URL(baseUrl));
-            setBasicAuthenticationHeader(request, authForURL.getUser(), authForURL.getPass());
+            if (authForURL != null)
+            {
+                setBasicAuthenticationHeader(request, authForURL.getUser(), authForURL.getPass());
+            }
         }
         
         // add header data
