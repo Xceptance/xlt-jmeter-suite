@@ -1,4 +1,4 @@
-package com.xceptance.loadtest.jmeter.tests.jmeter;
+package com.xceptance.loadtest.jmeter.tests;
 
 import java.io.File;
 import java.net.URL;
@@ -55,8 +55,8 @@ public class TJmeter extends JMeterTestCase implements NonSiteRelatedTest
         {
             super.init();
 //            fileName = "CustomerAuthorization.jmx";
-//            fileName = "GuestOrder.jmx";
-            fileName = "CustomerAuthorizationExtended.jmx";
+            fileName = "GuestOrder.jmx";
+//            fileName = "CustomerAuthorizationExtended.jmx";
             
             Optional<File> testPlan = DataFileProvider.dataFile(fileName);
             Assert.assertTrue("The "+ fileName +" file could not be found.", testPlan.isPresent());
@@ -97,7 +97,7 @@ public class TJmeter extends JMeterTestCase implements NonSiteRelatedTest
         tree.traverse(authManager);
         
         Collection<AuthManager> authManagerResults = authManager.getSearchResults();
-        if (authManagerResults != null)
+        if (authManagerResults != null && !authManagerResults.isEmpty())
         {
             authResults = authManagerResults.iterator().next();
         }
