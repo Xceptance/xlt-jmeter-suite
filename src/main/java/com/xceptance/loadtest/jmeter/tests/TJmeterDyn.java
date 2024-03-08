@@ -6,7 +6,6 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
@@ -28,19 +27,20 @@ import org.apache.jorphan.collections.HashTree;
 import org.htmlunit.HttpMethod;
 import org.junit.Assert;
 
+import com.google.common.collect.LinkedHashMultimap;
+import com.google.common.collect.Multimap;
 import com.xceptance.loadtest.api.data.DataFileProvider;
 import com.xceptance.loadtest.api.data.NonSiteRelatedTest;
-import com.xceptance.loadtest.api.data.SearchClass;
 import com.xceptance.loadtest.api.tests.JMeterTestCase;
 import com.xceptance.loadtest.api.util.Actions;
 import com.xceptance.loadtest.api.util.Context;
 import com.xceptance.loadtest.api.util.SearchHelper;
-import com.xceptance.loadtest.api.util.SearchHelperStructured;
+import com.xceptance.loadtest.api.util.SearchHelperDynamic;
 import com.xceptance.xlt.engine.httprequest.HttpRequest;
 import com.xceptance.xlt.engine.httprequest.HttpResponse;
 
 
-public class TJmeter extends JMeterTestCase implements NonSiteRelatedTest
+public class TJmeterDyn extends JMeterTestCase implements NonSiteRelatedTest
 {
     private HashTree tree;
     private String scheme;
@@ -49,7 +49,13 @@ public class TJmeter extends JMeterTestCase implements NonSiteRelatedTest
     private String fileName;
     private AuthManager authResults;
     
-    public TJmeter()
+    private HeaderManager headerData = null;
+    private HTTPSamplerProxy requestData = null;
+    private TransactionController action = null;
+    private String name;
+    private HttpResponse strucutredRequest;
+    
+    public TJmeterDyn()
     {
         try
         {
@@ -108,49 +114,83 @@ public class TJmeter extends JMeterTestCase implements NonSiteRelatedTest
         // TODO protocols assertion
         Assert.assertTrue("Only HTTP or HTTPS are allowed as protocol.", PROTOCOLS.test(scheme));
         
-        // search for given classes in order
-        SearchHelperStructured<TransactionController, HTTPSamplerProxy, HeaderManager> searchHelperStructured = new SearchHelperStructured<TransactionController, HTTPSamplerProxy, HeaderManager>(TransactionController.class,HTTPSamplerProxy.class,HeaderManager.class);
-        tree.traverse(searchHelperStructured);
+        SearchHelperDynamic shd = new SearchHelperDynamic();
+        tree.traverse(shd);
         
-        // result for the search in order they were encountered in jmx file
-        LinkedHashMap<TransactionController, List<SearchClass<HTTPSamplerProxy, HeaderManager>>> structuredResult = searchHelperStructured.getStructuredResult();
+        LinkedHashMap<String, Object> results = shd.getResults();
+        Multimap<String, Object> map = LinkedHashMultimap.create();
         
-        // main elements, sorted in reference to jmx file  
-        Set<Entry<TransactionController, List<SearchClass<HTTPSamplerProxy, HeaderManager>>>> entrySet = structuredResult.entrySet();
-        
-        // replay the file
-        entrySet.forEach(i -> 
+        // building the action related groups for requests
+        results.entrySet().forEach(e ->
         {
-            String name = i.getKey().getName();
+            if (e.getValue() instanceof TransactionController)
+            {
+               action = (TransactionController) e.getValue();
+               name = action.getName();
+            }
+            
+            if (StringUtils.isNotBlank(name) &&
+                e.getValue() instanceof TransactionController == false)
+            {
+                map.put(name, e.getValue());
+            }
+        });
+        
+        // fire the requests under the according action
+        map.keySet().forEach(e ->
+        {
             try
             {
-                Actions.run(name, t ->
+                Actions.run(e, p ->
                 {
-                    i.getValue().forEach(p -> 
+                    map.entries().forEach(d -> 
                     {
-                        try
-                        {
-                            buildStrucutredRequest(p, t);
-                        } 
-                        catch (Throwable e)
-                        {
-                            e.printStackTrace();
-                        }
+                        Object value = d.getValue();
+                        
+                      if (value instanceof HTTPSamplerProxy)
+                      {
+                          requestData = (HTTPSamplerProxy) value;
+                      }
+                      if (value instanceof HeaderManager)
+                      {
+                          headerData = (HeaderManager) value;
+                      }
+                        
+                      if (requestData != null && headerData != null)
+                      {
+                          try
+                          {
+                              strucutredRequest = buildStrucutredRequest(requestData, headerData, p);
+                          } 
+                          catch (Throwable e1)
+                          {
+                              // TODO Auto-generated catch block
+                              e1.printStackTrace();
+                          }
+                          requestData = null;
+                          headerData = null;
+                      }
+                        
+                      if (value instanceof RegexExtractor)
+                      {
+                          applyRegexExtractor((RegexExtractor)value, strucutredRequest);
+                      }
+                        
                     });
                 });
             } 
-            catch (Throwable e)
+            catch (Throwable e1)
             {
-                e.printStackTrace();
+                // TODO Auto-generated catch block
+                e1.printStackTrace();
             }
         });
     }
     
-    public void buildStrucutredRequest(SearchClass<HTTPSamplerProxy, HeaderManager> data, String requestName) throws Throwable
+    public HttpResponse buildStrucutredRequest(HTTPSamplerProxy sampleProxy, HeaderManager header, String requestName) throws Throwable
     {
-        HTTPSamplerProxy firstClass = data.getFirstClass();
-        HeaderManager secondClass = data.getSecondClass();
-        List<RegexExtractor> regexData = data.getRegexData();
+        HTTPSamplerProxy firstClass = sampleProxy;
+        HeaderManager secondClass = header;
         
         String domain = firstClass.getDomain();
         String path = firstClass.getPath();
@@ -181,38 +221,32 @@ public class TJmeter extends JMeterTestCase implements NonSiteRelatedTest
         
         // check if the request was successful
         response.checkStatusCode(200);
-        
-        // in case we have a regex, apply the regex on the result
-        applyRegexExtractor(request, regexData, response);
+
+        return response;
     }
     
-    private HttpRequest applyRegexExtractor(HttpRequest request, List<RegexExtractor> regexData, HttpResponse response)
+    private void applyRegexExtractor(RegexExtractor regexData, HttpResponse response)
     {
-        regexData.forEach(r -> 
-        {
-            // simple pattern retrieve from file and regex
-            String contentAsString = response.getContentAsString();
-            int matchNumber = r.getMatchNumber();
-            Pattern p = Pattern.compile(r.getRegex());
-            Matcher matcher = p.matcher(contentAsString);
-            
-            // initialize string value
-            String group = "";
-            if (matcher.find())
-            {
-                // random value is 0 in JMeter, we simply take the first encounter in this case
-                group = matcher.group(matchNumber == 0 ? 1 : matchNumber);
-            }
-            else
-            {
-                // print assertion message which is defined in jmx file
-                Assert.fail(r.getDefaultValue());
-            }
-            // save the reference (key) and the extracted value in the arguments map
-            variableMap.put(String.format(jmeterVariable, r.getRefName()), group);
-        });
+        // simple pattern retrieve from file and regex
+        String contentAsString = response.getContentAsString();
+        int matchNumber = regexData.getMatchNumber();
+        Pattern p = Pattern.compile(regexData.getRegex());
+        Matcher matcher = p.matcher(contentAsString);
         
-        return request;
+        // initialize string value
+        String group = "";
+        if (matcher.find())
+        {
+            // random value is 0 in JMeter, we simply take the first encounter in this case
+            group = matcher.group(matchNumber == 0 ? 1 : matchNumber);
+        }
+        else
+        {
+            // print assertion message which is defined in jmx file
+            Assert.fail(regexData.getDefaultValue());
+        }
+        // save the reference (key) and the extracted value in the arguments map
+        variableMap.put(String.format(jmeterVariable, regexData.getRefName()), group);
     }
     
     private HttpRequest addHeaderData(HttpRequest request, HeaderManager headerData)

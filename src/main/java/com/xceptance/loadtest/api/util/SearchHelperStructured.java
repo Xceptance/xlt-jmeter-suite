@@ -1,7 +1,6 @@
 package com.xceptance.loadtest.api.util;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 
@@ -50,17 +49,6 @@ public class SearchHelperStructured<R, T, K> implements HashTreeTraverser
         this.rootClass = rootClass;
     }
 
-    /**
-     * After traversing the HashTree, call this method to get a collection of
-     * the nodes that were found.
-     *
-     * @return Collection All found nodes of the requested type
-     */
-    public Collection<SearchClass<T, K>> getSearchResults() 
-    { 
-        return result;
-    }
-    
     public LinkedHashMap<R, List<SearchClass<T, K>>> getStructuredResult() 
     { 
         return structuredList;
@@ -96,6 +84,7 @@ public class SearchHelperStructured<R, T, K> implements HashTreeTraverser
         {
             searchClass.setRegexExtractor((searchClass.getRegexClass().cast(node)));
         }
+        
     }
 
     /** {@inheritDoc} */
