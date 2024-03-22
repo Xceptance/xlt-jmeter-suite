@@ -222,7 +222,8 @@ public class CustomJMeterEngine extends StandardJMeterEngine
 //            waitThreadsStopped(); // wait for Post threads to stop
 //        }
         
-        mainController = (Controller) searcher.getSearchResults().toArray()[0];
+        Collection<AbstractThreadGroup> searchResults = searcher.getSearchResults();
+        mainController = (Controller) searchResults.toArray()[0];
         mainController.initialize();
         
         JMeterContext context = JMeterContextService.getContext();
@@ -237,6 +238,9 @@ public class CustomJMeterEngine extends StandardJMeterEngine
             {
                 // if null the variables are not used in the context (TransactionController : notifyListeners())
                 context.setThreadGroup((AbstractThreadGroup) mainController);
+                
+                HashTree subTree = searcher.getSubTree(sam);
+                
                 processSampler(sam, null, context);
                 context.cleanAfterSample();
 
@@ -268,6 +272,69 @@ public class CustomJMeterEngine extends StandardJMeterEngine
         JMeterContextService.endTest();
     }
     
+    private SampleResult processSampler(Sampler current, Sampler parent, JMeterContext threadContext) 
+    {
+        SampleResult transactionResult = null;
+        // Check if we are running a transaction
+        TransactionSampler transactionSampler = null;
+        // Find the package for the transaction
+        SamplePackage transactionPack = null;
+        try
+        {
+            if (current instanceof TransactionSampler) 
+            {
+                transactionSampler = (TransactionSampler) current;
+                transactionPack = compiler.configureTransactionSampler(transactionSampler);
+
+                // Check if the transaction is done
+                if (transactionSampler.isTransactionDone()) 
+                {
+                    transactionResult = doEndTransactionSampler(transactionSampler,
+                            parent,
+                            transactionPack,
+                            threadContext);
+                    // Transaction is done, we do not have a sampler to sample
+                    current = null;
+                } 
+                else
+                {
+                    Sampler prev = current;
+                    // It is the sub sampler of the transaction that will be sampled
+                    current = transactionSampler.getSubSampler();
+                    if (current instanceof TransactionSampler) 
+                    {
+                        SampleResult res = processSampler(current, prev, threadContext);// recursive call
+                        threadContext.setCurrentSampler(prev);
+                        current = null;
+                        if (res != null) 
+                        {
+                            transactionSampler.addSubSamplerResult(res);
+                        }
+                    }
+                }
+            }
+
+            // Check if we have a sampler to sample
+            if (current != null) 
+            {
+                System.out.println(current.getName());
+                executeSamplePackage(current, transactionSampler, transactionPack, threadContext);
+            }
+
+        } catch (JMeterStopTestException e) 
+        { 
+            // TODO logging and eventually actions
+        }
+        if (!running
+                && transactionResult == null
+                && transactionSampler != null
+                && transactionPack != null) {
+            transactionResult = doEndTransactionSampler(transactionSampler, parent, transactionPack, threadContext);
+        }
+
+        return transactionResult;
+    }
+    
     private void executeSamplePackage(Sampler current,
             TransactionSampler transactionSampler,
             SamplePackage transactionPack,
@@ -292,7 +359,7 @@ public class CustomJMeterEngine extends StandardJMeterEngine
             //*************************************************************
             try
             {
-                buildAndExecuteRequest(pack, result.getSampleLabel());
+                buildAndExecuteRequest(pack, current.getName());
             } 
             catch (Throwable e)
             {
@@ -388,7 +455,7 @@ public class CustomJMeterEngine extends StandardJMeterEngine
         HttpResponse response = request.fire();
         
         // check if the request was successful
-//        response.checkStatusCode(200);
+        response.checkStatusCode(200);
     }
     
     public void setBasicAuthenticationHeader(HttpRequest request, final String username, final String password)
@@ -498,68 +565,7 @@ public class CustomJMeterEngine extends StandardJMeterEngine
         return iterationListener;
     }
     
-    private SampleResult processSampler(Sampler current, Sampler parent, JMeterContext threadContext) 
-    {
-        SampleResult transactionResult = null;
-        // Check if we are running a transaction
-        TransactionSampler transactionSampler = null;
-        // Find the package for the transaction
-        SamplePackage transactionPack = null;
-        try
-        {
-            if (current instanceof TransactionSampler) 
-            {
-                transactionSampler = (TransactionSampler) current;
-                transactionPack = compiler.configureTransactionSampler(transactionSampler);
-
-                // Check if the transaction is done
-                if (transactionSampler.isTransactionDone()) 
-                {
-                    transactionResult = doEndTransactionSampler(transactionSampler,
-                            parent,
-                            transactionPack,
-                            threadContext);
-                    // Transaction is done, we do not have a sampler to sample
-                    current = null;
-                } 
-                else
-                {
-                    Sampler prev = current;
-                    // It is the sub sampler of the transaction that will be sampled
-                    current = transactionSampler.getSubSampler();
-                    if (current instanceof TransactionSampler) 
-                    {
-                        SampleResult res = processSampler(current, prev, threadContext);// recursive call
-                        threadContext.setCurrentSampler(prev);
-                        current = null;
-                        if (res != null) 
-                        {
-                            transactionSampler.addSubSamplerResult(res);
-                        }
-                    }
-                }
-            }
-
-            // Check if we have a sampler to sample
-            if (current != null) 
-            {
-                System.out.println(current.getName());
-                executeSamplePackage(current, transactionSampler, transactionPack, threadContext);
-            }
-
-        } catch (JMeterStopTestException e) 
-        { 
-            // TODO logging and eventually actions
-        }
-        if (!running
-                && transactionResult == null
-                && transactionSampler != null
-                && transactionPack != null) {
-//            transactionResult = doEndTransactionSampler(transactionSampler, parent, transactionPack, threadContext);
-        }
-
-        return transactionResult;
-    }
+   
     
     private static void setLastSampleOk(JMeterVariables variables, boolean value) 
     {
