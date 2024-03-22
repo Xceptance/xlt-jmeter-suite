@@ -1,18 +1,16 @@
 package com.xceptance.loadtest.jmeter.tests;
 
-import java.io.File;
-import java.util.Optional;
-
-import org.apache.jmeter.engine.StandardJMeterEngine;
+import com.xceptance.loadtest.api.data.CustomJMeterEngine;
+import com.xceptance.loadtest.api.data.DataFileProvider;
+import com.xceptance.loadtest.api.data.NonSiteRelatedTest;
+import com.xceptance.loadtest.api.tests.JMeterTestCase;
 import org.apache.jmeter.save.SaveService;
 import org.apache.jmeter.util.JMeterUtils;
 import org.apache.jorphan.collections.HashTree;
 import org.junit.Assert;
 
-import com.xceptance.loadtest.api.data.CustomJMeterEngine;
-import com.xceptance.loadtest.api.data.DataFileProvider;
-import com.xceptance.loadtest.api.data.NonSiteRelatedTest;
-import com.xceptance.loadtest.api.tests.JMeterTestCase;
+import java.io.File;
+import java.util.Optional;
 
 
 public class TJmeterNative extends JMeterTestCase implements NonSiteRelatedTest
@@ -27,7 +25,7 @@ public class TJmeterNative extends JMeterTestCase implements NonSiteRelatedTest
             super.init();
 //            fileName = "CustomerAuthorization.jmx";
 //            fileName = "GuestOrder.jmx";
-            fileName = "CustomerAuthorizationExtended.jmx";
+            fileName = "/home/daniel/jmeter/recording-test.jmx";
             
             Optional<File> testPlan = DataFileProvider.dataFile(fileName);
             Assert.assertTrue("The "+ fileName +" file could not be found.", testPlan.isPresent());
@@ -37,7 +35,9 @@ public class TJmeterNative extends JMeterTestCase implements NonSiteRelatedTest
         } 
         catch (Throwable e)
         {
-            e.printStackTrace();
+            AssertionError ae = new AssertionError(e.getMessage());
+            ae.setStackTrace(e.getStackTrace());
+            throw ae;
         }
         
         // remove file ending for naming 
