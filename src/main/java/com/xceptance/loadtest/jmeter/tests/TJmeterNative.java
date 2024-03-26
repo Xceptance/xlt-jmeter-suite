@@ -25,8 +25,8 @@ public class TJmeterNative extends JMeterTestCase implements NonSiteRelatedTest
             super.init();
 //            fileName = "CustomerAuthorization.jmx";
 //            fileName = "GuestOrder.jmx";
-            fileName = "/home/daniel/jmeter/recording-test.jmx";
-            
+            fileName = "CustomerAuthorizationExtended.jmx";
+
             Optional<File> testPlan = DataFileProvider.dataFile(fileName);
             Assert.assertTrue("The "+ fileName +" file could not be found.", testPlan.isPresent());
             
