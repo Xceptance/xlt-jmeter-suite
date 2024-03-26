@@ -15,6 +15,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.jmeter.config.Arguments;
 import org.apache.jmeter.config.ConfigTestElement;
 import org.apache.jmeter.control.Controller;
+import org.apache.jmeter.control.TransactionController;
 import org.apache.jmeter.control.TransactionSampler;
 import org.apache.jmeter.engine.PreCompiler;
 import org.apache.jmeter.engine.StandardJMeterEngine;
@@ -28,6 +29,7 @@ import org.apache.jmeter.protocol.http.control.Authorization;
 import org.apache.jmeter.protocol.http.control.HeaderManager;
 import org.apache.jmeter.protocol.http.sampler.HTTPSamplerProxy;
 import org.apache.jmeter.samplers.SampleEvent;
+import org.apache.jmeter.samplers.SampleListener;
 import org.apache.jmeter.samplers.SampleResult;
 import org.apache.jmeter.samplers.Sampler;
 import org.apache.jmeter.testbeans.TestBeanHelper;
@@ -36,6 +38,7 @@ import org.apache.jmeter.testelement.TestIterationListener;
 import org.apache.jmeter.testelement.TestStateListener;
 import org.apache.jmeter.testelement.property.CollectionProperty;
 import org.apache.jmeter.threads.AbstractThreadGroup;
+import org.apache.jmeter.threads.FindTestElementsUpToRootTraverser;
 import org.apache.jmeter.threads.JMeterContext;
 import org.apache.jmeter.threads.JMeterContext.TestLogicalAction;
 import org.apache.jmeter.threads.JMeterContextService;
@@ -52,6 +55,7 @@ import org.apache.jorphan.collections.SearchByClass;
 import org.apache.jorphan.util.JMeterStopTestException;
 import org.htmlunit.HttpMethod;
 
+import com.xceptance.loadtest.api.util.Actions;
 import com.xceptance.xlt.engine.httprequest.HttpRequest;
 import com.xceptance.xlt.engine.httprequest.HttpResponse;
 
@@ -77,6 +81,12 @@ public class CustomJMeterEngine extends StandardJMeterEngine
     private final boolean isSameUserOnNextIteration = true;
     private Collection<TestIterationListener> testIterationStartListeners;
     private Map<String, String> variableMap;
+    private List<SampleListener> sampleListeners;
+    private Sampler sam;
+    private FindTestElementsUpToRootTraverser pathToRootTraverser;
+    private List<Controller> controllersToRoot;
+    private Controller controller;
+    private String name;
 
     @Override
     public void configure(HashTree testTree)
@@ -142,134 +152,111 @@ public class CustomJMeterEngine extends StandardJMeterEngine
         // for each thread group, generate threads
         // hand each thread the sampler controller
         // and the listeners, and the timer
-        Iterator<SetupThreadGroup> setupIter = setupSearcher.getSearchResults().iterator();
+        
         Iterator<AbstractThreadGroup> iter = searcher.getSearchResults().iterator();
-        Iterator<PostThreadGroup> postIter = postSearcher.getSearchResults().iterator();
 
 //        ListenerNotifier notifier = new ListenerNotifier();
-//
-//        int groupCount = 0;
-//        JMeterContextService.clearTotalThreads();
-//
-//        if (setupIter.hasNext()) 
-//        {
-//            while (running && setupIter.hasNext()) 
-//            {
-//                //for each setup thread group
-//                AbstractThreadGroup group = setupIter.next();
-//                groupCount++;
-//                String groupName = group.getName();
-//                startThreadGroup(group, groupCount, setupSearcher, testLevelElements, notifier);
-//                if (setupIter.hasNext()) 
-//                {
-//                    group.waitThreadsStopped();
-//                }
-//            }
-//            //wait for all Setup Threads To Exit
-//            waitThreadsStopped();
-//            groupCount=0;
-//            JMeterContextService.clearTotalThreads();
-//        }
-//
-//        groups.clear(); // The groups have all completed now
-//
-//        /*
-//         * Here's where the test really starts. Run a Full GC now: it's no harm
-//         * at all (just delays test start by a tiny amount) and hitting one too
-//         * early in the test can impair results for short tests.
-//         */
-//        JMeterUtils.helpGC();
-//
-//        boolean mainGroups = running; // still running at this point, i.e. setUp was not cancelled
-//        while (running && iter.hasNext()) {// for each thread group
-//            AbstractThreadGroup group = iter.next();
-//            //ignore Setup and Post here.  We could have filtered the searcher. but then
-//            //future Thread Group objects wouldn't execute.
-//            if (group instanceof SetupThreadGroup ||
-//                group instanceof PostThreadGroup) {
-//                continue;
-//            }
-//            groupCount++;
-//            String groupName = group.getName();
-//            startThreadGroup(group, groupCount, searcher, testLevelElements, notifier);
-//            if (iter.hasNext()) 
-//            {
-//                group.waitThreadsStopped();
-//            }
-//        } // end of thread groups
-//        
-//        //wait for all Test Threads To Exit
-//        waitThreadsStopped();
-//        groups.clear(); // The groups have all completed now
-//
-//        if (postIter.hasNext())
-//        {
-//            groupCount = 0;
-//            JMeterContextService.clearTotalThreads();
-//            if (mainGroups && !running) { // i.e. shutdown/stopped during main thread groups
-//                running = tearDownOnShutdown; // re-enable for tearDown if necessary
-//            }
-//            while (running && postIter.hasNext()) {//for each setup thread group
-//                AbstractThreadGroup group = postIter.next();
-//                groupCount++;
-//                String groupName = group.getName();
-//                startThreadGroup(group, groupCount, postSearcher, testLevelElements, notifier);
-//                if (postIter.hasNext()) 
-//                {
-//                    group.waitThreadsStopped();
-//                }
-//            }
-//            waitThreadsStopped(); // wait for Post threads to stop
-//        }
+
+        int groupCount = 0;
+        JMeterContextService.clearTotalThreads();
         
         Collection<AbstractThreadGroup> searchResults = searcher.getSearchResults();
         mainController = (Controller) searchResults.toArray()[0];
-        mainController.initialize();
         
         JMeterContext context = JMeterContextService.getContext();
-        Object iterationListener = initRun(context);
+        initRun(context);
+        
+        // main hashtree
+        AbstractThreadGroup group = iter.next();
+        ListedHashTree groupTree = (ListedHashTree) searcher.getSubTree(group);
         
         JMeterContextService.getContext().setSamplingStarted(true);
 
         while (running) 
         {
-            Sampler sam = mainController.next();
-            while (running && sam != null) 
+            sam = mainController.next();
+            
+            // get the first parent controller node, for naming and action bundling
+            pathToRootTraverser = new FindTestElementsUpToRootTraverser(sam);
+            groupTree.traverse(pathToRootTraverser);
+            controllersToRoot = pathToRootTraverser.getControllersToRoot();
+            
+            controller = controllersToRoot.get(0);
+            name = controller.getName();
+            
+            try
             {
-                // if null the variables are not used in the context (TransactionController : notifyListeners())
-                context.setThreadGroup((AbstractThreadGroup) mainController);
-                
-                HashTree subTree = searcher.getSubTree(sam);
-                
-                processSampler(sam, null, context);
-                context.cleanAfterSample();
-
-                boolean lastSampleOk = TRUE.equals(context.getVariables().get(LAST_SAMPLE_OK));
-                // restart of the next loop
-                // - was requested through threadContext
-                // - or the last sample failed AND the onErrorStartNextLoop option is enabled
-                if (context.getTestLogicalAction() != TestLogicalAction.CONTINUE
-                        || !lastSampleOk)
+                Actions.run(name, t ->
                 {
-                    context.setTestLogicalAction(TestLogicalAction.CONTINUE);
-                    sam = null;
-                    setLastSampleOk(context.getVariables(), true);
-                }
-                else 
-                {
-                    sam = mainController.next();
-                }
-            }
+                    while (running && sam != null) 
+                    {
+                        // if null the variables are not used in the context (TransactionController : notifyListeners())
+                        context.setThreadGroup((AbstractThreadGroup) mainController);
+                        
+                        HashTree subTree = searcher.getSubTree(sam);
+                        
+                        processSampler(sam, null, context);
+                        context.cleanAfterSample();
 
-            // It would be possible to add finally for Thread Loop here
-            if (mainController.isDone()) 
+                        boolean lastSampleOk = TRUE.equals(context.getVariables().get(LAST_SAMPLE_OK));
+                        // restart of the next loop
+                        // - was requested through threadContext
+                        // - or the last sample failed AND the onErrorStartNextLoop option is enabled
+                        if (context.getTestLogicalAction() != TestLogicalAction.CONTINUE
+                                || !lastSampleOk)
+                        {
+                            context.setTestLogicalAction(TestLogicalAction.CONTINUE);
+                            sam = null;
+                            setLastSampleOk(context.getVariables(), true);
+                        }
+                        else 
+                        {
+                            sam = mainController.next();
+                            
+                            // get the first parent controller node, for naming and action bundling
+                            pathToRootTraverser = new FindTestElementsUpToRootTraverser(sam);
+                            groupTree.traverse(pathToRootTraverser);
+                            controllersToRoot = pathToRootTraverser.getControllersToRoot();
+                            
+                            controller = controllersToRoot.get(0);
+                            String newName = controller.getName();
+                            System.out.println(newName);
+                            
+                            if (!StringUtils.equals(name, newName))
+                            {
+                                // new action started
+                                return;
+                            }
+                        }
+                    }
+
+                    // It would be possible to add finally for Thread Loop here
+                    if (mainController.isDone()) 
+                    {
+                        running = false;
+                    }
+                });
+            } 
+            catch (Throwable e)
             {
-                running = false;
+                // TODO Auto-generated catch block
+                e.printStackTrace();
             }
         }
 
 //        notifyTestListenersOfEnd(testListeners);
         JMeterContextService.endTest();
+    }
+    
+    private static Controller findRealSampler(Sampler sampler) 
+    {
+        Controller contr = null;
+        Sampler realSampler = sampler;
+        while (realSampler instanceof Controller) 
+        {
+            contr = ((TransactionController) sampler);
+        }
+        return contr;
     }
     
     private SampleResult processSampler(Sampler current, Sampler parent, JMeterContext threadContext) 
@@ -317,7 +304,6 @@ public class CustomJMeterEngine extends StandardJMeterEngine
             // Check if we have a sampler to sample
             if (current != null) 
             {
-                System.out.println(current.getName());
                 executeSamplePackage(current, transactionSampler, transactionPack, threadContext);
             }
 
