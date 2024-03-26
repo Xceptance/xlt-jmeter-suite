@@ -214,26 +214,29 @@ public class CustomJMeterEngine extends StandardJMeterEngine
                             sam = mainController.next();
                             
                             // get the first parent controller node, for naming and action bundling
-                            pathToRootTraverser = new FindTestElementsUpToRootTraverser(sam);
-                            groupTree.traverse(pathToRootTraverser);
-                            controllersToRoot = pathToRootTraverser.getControllersToRoot();
-                            
-                            controller = controllersToRoot.get(0);
-                            String newName = controller.getName();
-                            System.out.println(newName);
-                            
-                            if (!StringUtils.equals(name, newName))
+                            if (sam != null)
                             {
-                                // new action started
-                                return;
+                                pathToRootTraverser = new FindTestElementsUpToRootTraverser(sam);
+                                groupTree.traverse(pathToRootTraverser);
+                                controllersToRoot = pathToRootTraverser.getControllersToRoot();
+                                
+                                controller = controllersToRoot.get(0);
+                                String newName = controller.getName();
+                                
+                                if (!StringUtils.equals(name, newName))
+                                {
+                                    System.out.println(newName);
+                                    // new action started
+                                    break;
+                                }
                             }
                         }
-                    }
 
-                    // It would be possible to add finally for Thread Loop here
-                    if (mainController.isDone()) 
-                    {
-                        running = false;
+                        // It would be possible to add finally for Thread Loop here
+                        if (mainController.isDone()) 
+                        {
+                            running = false;
+                        }
                     }
                 });
             } 
