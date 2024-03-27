@@ -54,6 +54,7 @@ import org.apache.jorphan.collections.ListedHashTree;
 import org.apache.jorphan.collections.SearchByClass;
 import org.apache.jorphan.util.JMeterStopTestException;
 import org.htmlunit.HttpMethod;
+import org.junit.Assert;
 
 import com.xceptance.loadtest.api.util.Actions;
 import com.xceptance.xlt.engine.httprequest.HttpRequest;
@@ -157,10 +158,11 @@ public class CustomJMeterEngine extends StandardJMeterEngine
 
 //        ListenerNotifier notifier = new ListenerNotifier();
 
-        int groupCount = 0;
         JMeterContextService.clearTotalThreads();
         
         Collection<AbstractThreadGroup> searchResults = searcher.getSearchResults();
+        
+        Assert.assertFalse("No usable requests in xml file found.", searchResults.isEmpty());
         mainController = (Controller) searchResults.toArray()[0];
         
         JMeterContext context = JMeterContextService.getContext();
@@ -172,10 +174,11 @@ public class CustomJMeterEngine extends StandardJMeterEngine
         
         JMeterContextService.getContext().setSamplingStarted(true);
 
+        // get the first item
+        sam = mainController.next();
+        
         while (running) 
         {
-            sam = mainController.next();
-            
             // get the first parent controller node, for naming and action bundling
             pathToRootTraverser = new FindTestElementsUpToRootTraverser(sam);
             groupTree.traverse(pathToRootTraverser);
