@@ -88,6 +88,7 @@ public class CustomJMeterEngine extends StandardJMeterEngine
     private List<Controller> controllersToRoot;
     private Controller controller;
     private String name;
+    private int index;
 
     @Override
     public void configure(HashTree testTree)
@@ -176,6 +177,7 @@ public class CustomJMeterEngine extends StandardJMeterEngine
 
         // get the first item
         sam = mainController.next();
+        index = 0;
         
         while (running) 
         {
@@ -186,6 +188,9 @@ public class CustomJMeterEngine extends StandardJMeterEngine
             
             controller = controllersToRoot.get(0);
             name = controller.getName();
+            
+            index++;
+            name = StringUtils.isBlank(name) ? name : "Action " + index;
             
             try
             {
@@ -225,6 +230,7 @@ public class CustomJMeterEngine extends StandardJMeterEngine
                                 
                                 controller = controllersToRoot.get(0);
                                 String newName = controller.getName();
+                                name = StringUtils.isBlank(name) ? name : "Action " + index;
                                 
                                 if (!StringUtils.equals(name, newName))
                                 {
@@ -336,6 +342,7 @@ public class CustomJMeterEngine extends StandardJMeterEngine
         // Get the sampler ready to sample
         SamplePackage pack = compiler.configureSampler(current);
         runPreProcessors(pack.getPreProcessors());
+        current.setThreadContext(threadContext);
 
         // Hack: save the package for any transaction controllers
         threadVars.putObject(PACKAGE_OBJECT, pack);
@@ -407,6 +414,9 @@ public class CustomJMeterEngine extends StandardJMeterEngine
         AuthManager am = null;
         
         List<ConfigTestElement> configs = data.getConfigs();
+
+        // TODO variables are not resolved at this point !
+        JMeterVariables variables = JMeterContextService.getContext().getVariables();
         
         for (ConfigTestElement element : configs)
         {
