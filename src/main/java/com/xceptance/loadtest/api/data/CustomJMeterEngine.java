@@ -53,6 +53,7 @@ import org.apache.jorphan.collections.HashTree;
 import org.apache.jorphan.collections.ListedHashTree;
 import org.apache.jorphan.collections.SearchByClass;
 import org.apache.jorphan.util.JMeterStopTestException;
+import org.apiguardian.api.API;
 import org.htmlunit.HttpMethod;
 import org.junit.Assert;
 
@@ -67,7 +68,7 @@ public class CustomJMeterEngine extends StandardJMeterEngine
     private static final List<TestStateListener> testList = new ArrayList<>();
     private final List<AbstractThreadGroup> groups = new CopyOnWriteArrayList<>();
     private boolean tearDownOnShutdown;
-    private final JMeterVariables threadVars = new JMeterVariables();
+    public JMeterVariables threadVars;
     private TestCompiler compiler;
     public static final String LAST_SAMPLE_OK = "JMeterThread.last_sample_ok"; // $NON-NLS-1$
     static final String VAR_IS_SAME_USER_KEY = "__jmv_SAME_USER";
@@ -89,7 +90,7 @@ public class CustomJMeterEngine extends StandardJMeterEngine
     private Controller controller;
     private String name;
     private int index;
-
+    
     @Override
     public void configure(HashTree testTree)
     {
@@ -97,6 +98,7 @@ public class CustomJMeterEngine extends StandardJMeterEngine
         test = testTree;
         compiler = new TestCompiler(testTree);
         variableMap = new HashMap<String, String>();
+        threadVars = new JMeterVariables();
     }       
     
     public void setEngine(CustomJMeterEngine engine) {
@@ -113,17 +115,23 @@ public class CustomJMeterEngine extends StandardJMeterEngine
          */
         SampleEvent.initSampleVariables();
         JMeterContextService.startTest();
+        
+        // needed for engine
         SearchByClass<TestIterationListener> threadListenerSearcher = new SearchByClass<>(TestIterationListener.class); // TL - IS
         testIterationStartListeners = threadListenerSearcher.getSearchResults();
+        
         try 
         {
             PreCompiler compiler = new PreCompiler();
             test.traverse(compiler);
         }
-        catch (RuntimeException e) {
+        catch 
+        (RuntimeException e) 
+        {
             JMeterUtils.reportErrorToUser("Error occurred compiling the tree: - see log file", e);
             return; // no point continuing
         }
+        
         /*
          * Notification of test listeners needs to happen after function
          * replacement, but before setting RunningVersion to true.
@@ -204,7 +212,8 @@ public class CustomJMeterEngine extends StandardJMeterEngine
                         {
                             context.setTestLogicalAction(TestLogicalAction.CONTINUE);
                             sam = null;
-                            setLastSampleOk(context.getVariables(), true);
+                            // already done after the request was called
+//                            setLastSampleOk(context.getVariables(), true);
                         }
                         else 
                         {
@@ -349,6 +358,7 @@ public class CustomJMeterEngine extends StandardJMeterEngine
         if (running) 
         {
             Sampler sampler = pack.getSampler();
+            sampler.setThreadContext(JMeterContextService.getContext());
             result =  sampler.sample(null);
             
             //*************************************************************
@@ -357,6 +367,12 @@ public class CustomJMeterEngine extends StandardJMeterEngine
             try
             {
                 buildAndExecuteRequest(pack, current.getName());
+                threadVars.putObject(VAR_IS_SAME_USER_KEY, isSameUserOnNextIteration);
+                threadContext.setVariables(threadVars);
+                setLastSampleOk(threadVars, true);
+                
+                // set the variables into the engine for mapping
+                putVariables(threadVars);
             } 
             catch (Throwable e)
             {
@@ -413,9 +429,6 @@ public class CustomJMeterEngine extends StandardJMeterEngine
         
         List<ConfigTestElement> configs = data.getConfigs();
 
-        // TODO variables are not resolved at this point !
-        JMeterVariables variables = JMeterContextService.getContext().getVariables();
-        
         for (ConfigTestElement element : configs)
         {
             if (element instanceof HeaderManager)
@@ -501,21 +514,20 @@ public class CustomJMeterEngine extends StandardJMeterEngine
         {
             // remove name from the combined value attribute
             request.header(p.getName(), p.getStringValue().replace(p.getName(), "")); 
-            Set<String> keySet = variableMap.keySet();
-            
-            keySet.forEach(k ->
-            {
-               if (p.getStringValue().contains(k))
-               {
-                   // remove name from the combined value attribute
-                   String preRefinedString = p.getStringValue().replace(p.getName(), ""); 
-                   // replace and add jmeter variables
-                   String replace = StringUtils.replaceOnceIgnoreCase(preRefinedString, 
-                                                                      String.format(jmeterVariable, k),
-                                                                      variableMap.get(k));
-                   request.header(p.getName(), replace);
-               }
-            });
+//            Set<String> keySet = variableMap.keySet();
+//            keySet.forEach(k ->
+//            {
+//               if (p.getStringValue().contains(k))
+//               {
+//                   // remove name from the combined value attribute
+//                   String preRefinedString = p.getStringValue().replace(p.getName(), ""); 
+//                   // replace and add jmeter variables
+//                   String replace = StringUtils.replaceOnceIgnoreCase(preRefinedString, 
+//                                                                      String.format(jmeterVariable, k),
+//                                                                      variableMap.get(k));
+//                   request.header(p.getName(), replace);
+//               }
+//            });
         });
         return request;
     }
@@ -539,13 +551,18 @@ public class CustomJMeterEngine extends StandardJMeterEngine
     private IterationListener initRun(JMeterContext threadContext) 
     {
         threadVars.putObject(VAR_IS_SAME_USER_KEY, isSameUserOnNextIteration);
+        // save all previous found variables (from compiler) into the thread 
+        threadVars.putAll(threadContext.getVariables());
         threadContext.setVariables(threadVars);
         threadContext.setThreadNum(1);
         setLastSampleOk(threadVars, true);
 //        threadContext.setThread(JMeterThread this);
 //        threadContext.setThreadGroup(threadGroup);
         threadContext.setEngine(engine);
+        
+        // variables are set at this point
         test.traverse(compiler);
+        
 //        if (scheduler) {
 //            // set the scheduler to start
 //            startScheduler();
@@ -565,7 +582,14 @@ public class CustomJMeterEngine extends StandardJMeterEngine
         return iterationListener;
     }
     
-   
+    /**
+     * Updates the variables with all entries found in the variables in {@code vars}
+     * @param variables {@link JMeterVariables} with the entries to be updated
+     */
+    @API(status = API.Status.STABLE, since = "5.5")
+    public void putVariables(JMeterVariables variables) {
+        threadVars.putAll(variables);
+    }
     
     private static void setLastSampleOk(JMeterVariables variables, boolean value) 
     {
