@@ -172,7 +172,6 @@ public class CustomJMeterEngine extends StandardJMeterEngine
         // main hashtree
         AbstractThreadGroup group = iter.next();
         ListedHashTree groupTree = (ListedHashTree) searcher.getSubTree(group);
-        
         JMeterContextService.getContext().setSamplingStarted(true);
 
         // get the first item
@@ -181,16 +180,8 @@ public class CustomJMeterEngine extends StandardJMeterEngine
         
         while (running) 
         {
-            // get the first parent controller node, for naming and action bundling
-            pathToRootTraverser = new FindTestElementsUpToRootTraverser(sam);
-            groupTree.traverse(pathToRootTraverser);
-            controllersToRoot = pathToRootTraverser.getControllersToRoot();
-            
-            controller = controllersToRoot.get(0);
-            name = controller.getName();
-            
+            name = getParentController(groupTree, index);
             index++;
-            name = StringUtils.isBlank(name) ? name : "Action " + index;
             
             try
             {
@@ -200,8 +191,6 @@ public class CustomJMeterEngine extends StandardJMeterEngine
                     {
                         // if null the variables are not used in the context (TransactionController : notifyListeners())
                         context.setThreadGroup((AbstractThreadGroup) mainController);
-                        
-                        HashTree subTree = searcher.getSubTree(sam);
                         
                         processSampler(sam, null, context);
                         context.cleanAfterSample();
@@ -224,14 +213,9 @@ public class CustomJMeterEngine extends StandardJMeterEngine
                             // get the first parent controller node, for naming and action bundling
                             if (sam != null)
                             {
-                                pathToRootTraverser = new FindTestElementsUpToRootTraverser(sam);
-                                groupTree.traverse(pathToRootTraverser);
-                                controllersToRoot = pathToRootTraverser.getControllersToRoot();
+                                String newName = getParentController(groupTree, index);
                                 
-                                controller = controllersToRoot.get(0);
-                                String newName = controller.getName();
-                                name = StringUtils.isBlank(name) ? name : "Action " + index;
-                                
+                                // TODO adjust naming and check ?
                                 if (!StringUtils.equals(name, newName))
                                 {
                                     System.out.println(newName);
@@ -258,6 +242,20 @@ public class CustomJMeterEngine extends StandardJMeterEngine
 
 //        notifyTestListenersOfEnd(testListeners);
         JMeterContextService.endTest();
+    }
+    
+    // TODO add tree location to every node before action loop?
+    private String getParentController(ListedHashTree groupTree, int index)
+    {
+        // get the first parent controller node, for naming and action bundling
+        pathToRootTraverser = new FindTestElementsUpToRootTraverser(sam);
+        groupTree.traverse(pathToRootTraverser);
+        controllersToRoot = pathToRootTraverser.getControllersToRoot();
+        
+        Assert.assertFalse("No controller found fo current element.", controllersToRoot.isEmpty());
+        
+        controller = controllersToRoot.get(0);
+        return StringUtils.isNotBlank(controller.getName()) ? controller.getName() : "Action " + index;
     }
     
     private static Controller findRealSampler(Sampler sampler) 
