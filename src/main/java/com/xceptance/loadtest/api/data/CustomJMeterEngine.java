@@ -117,7 +117,7 @@ public class CustomJMeterEngine extends StandardJMeterEngine
         JMeterContextService.startTest();
         
         // needed for engine
-        SearchByClass<TestIterationListener> threadListenerSearcher = new SearchByClass<>(TestIterationListener.class); // TL - IS
+        SearchByClass<TestIterationListener> threadListenerSearcher = new SearchByClass<>(TestIterationListener.class);
         testIterationStartListeners = threadListenerSearcher.getSearchResults();
         
         try 
@@ -136,7 +136,7 @@ public class CustomJMeterEngine extends StandardJMeterEngine
          * Notification of test listeners needs to happen after function
          * replacement, but before setting RunningVersion to true.
          */
-        SearchByClass<TestStateListener> testListeners = new SearchByClass<>(TestStateListener.class); // TL - S&E
+        SearchByClass<TestStateListener> testListeners = new SearchByClass<>(TestStateListener.class);
         test.traverse(testListeners);
         
         // Merge in any additional test listeners
@@ -514,6 +514,7 @@ public class CustomJMeterEngine extends StandardJMeterEngine
         {
             // remove name from the combined value attribute
             request.header(p.getName(), p.getStringValue().replace(p.getName(), "")); 
+            
 //            Set<String> keySet = variableMap.keySet();
 //            keySet.forEach(k ->
 //            {
