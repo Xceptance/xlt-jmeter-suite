@@ -3,11 +3,9 @@ package com.xceptance.loadtest.api.data;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import org.apache.commons.codec.binary.Base64;
@@ -82,7 +80,6 @@ public class CustomJMeterEngine extends StandardJMeterEngine
     private Controller mainController;
     private final boolean isSameUserOnNextIteration = true;
     private Collection<TestIterationListener> testIterationStartListeners;
-    private Map<String, String> variableMap;
     private List<SampleListener> sampleListeners;
     private Sampler sam;
     private FindTestElementsUpToRootTraverser pathToRootTraverser;
@@ -97,7 +94,6 @@ public class CustomJMeterEngine extends StandardJMeterEngine
         super.configure(testTree);
         test = testTree;
         compiler = new TestCompiler(testTree);
-        variableMap = new HashMap<String, String>();
         threadVars = new JMeterVariables();
     }       
     
@@ -366,7 +362,12 @@ public class CustomJMeterEngine extends StandardJMeterEngine
             //*************************************************************
             try
             {
-                buildAndExecuteRequest(pack, current.getName());
+                HttpResponse request = buildAndExecuteRequest(result ,pack, current.getName());
+
+                // set the response to jmeter results, null for platform default encoding
+                result.setResponseData(request.getContentAsString(), null);
+                result.setResponseHeaders(request.getHeaders().toString());
+                
                 threadVars.putObject(VAR_IS_SAME_USER_KEY, isSameUserOnNextIteration);
                 threadContext.setVariables(threadVars);
                 setLastSampleOk(threadVars, true);
@@ -421,7 +422,7 @@ public class CustomJMeterEngine extends StandardJMeterEngine
         }
     }
     
-    public void buildAndExecuteRequest(SamplePackage data, String requestName) throws Throwable
+    public HttpResponse buildAndExecuteRequest(SampleResult pack, SamplePackage data, String requestName) throws Throwable
     {
         HTTPSamplerProxy sampler = (HTTPSamplerProxy) data.getSampler();
         HeaderManager hm = null;
@@ -442,7 +443,7 @@ public class CustomJMeterEngine extends StandardJMeterEngine
         }
         
         String method = sampler.getMethod();
-        String baseUrl = data.getSampler().toString();
+        String baseUrl = pack.getUrlAsString();
         
         HttpRequest request = new HttpRequest()
                 .timerName(requestName)
@@ -469,6 +470,8 @@ public class CustomJMeterEngine extends StandardJMeterEngine
         
         // check if the request was successful
         response.checkStatusCode(200);
+        
+        return response;
     }
     
     public void setBasicAuthenticationHeader(HttpRequest request, final String username, final String password)
@@ -493,14 +496,7 @@ public class CustomJMeterEngine extends StandardJMeterEngine
             Map<String, String> argumentsAsMap = arguments.getArgumentsAsMap();
             for (Map.Entry<String, String> entry : argumentsAsMap.entrySet())
             {
-                if (variableMap.containsKey(entry.getValue()))
-                {
-                    request.param(entry.getKey(), variableMap.get(entry.getValue()));
-                }
-                else
-                {
-                    request.param(entry.getKey(), entry.getValue());
-                }
+                request.param(entry.getKey(), entry.getValue());
             };
         }
         return request;
@@ -514,21 +510,6 @@ public class CustomJMeterEngine extends StandardJMeterEngine
         {
             // remove name from the combined value attribute
             request.header(p.getName(), p.getStringValue().replace(p.getName(), "")); 
-            
-//            Set<String> keySet = variableMap.keySet();
-//            keySet.forEach(k ->
-//            {
-//               if (p.getStringValue().contains(k))
-//               {
-//                   // remove name from the combined value attribute
-//                   String preRefinedString = p.getStringValue().replace(p.getName(), ""); 
-//                   // replace and add jmeter variables
-//                   String replace = StringUtils.replaceOnceIgnoreCase(preRefinedString, 
-//                                                                      String.format(jmeterVariable, k),
-//                                                                      variableMap.get(k));
-//                   request.header(p.getName(), replace);
-//               }
-//            });
         });
         return request;
     }
