@@ -4,6 +4,7 @@
 # IDE Files
 .settings
 .classpath
+.idea
 
 # Results
 results
