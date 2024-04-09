@@ -1,12 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6">
   <hashTree>
-    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="Test Plan" enabled="true">
-      <stringProp name="TestPlan.comments"></stringProp>
-      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="User Defined Variables" enabled="true">
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="Test Plan">
+      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="User Defined Variables">
         <collectionProp name="Arguments.arguments"/>
       </elementProp>
-      <stringProp name="TestPlan.user_define_classpath"></stringProp>
     </TestPlan>
     <hashTree>
       <Arguments guiclass="ArgumentsPanel" testclass="Arguments" testname="User Defined Variables">
@@ -116,6 +114,14 @@
                   </elementProp>
                 </collectionProp>
               </HeaderManager>
+              <hashTree/>
+              <RegexExtractor guiclass="RegexExtractorGui" testclass="RegexExtractor" testname="CSRF-Extractor">
+                <stringProp name="RegexExtractor.refname">csrf_variable_homepage</stringProp>
+                <stringProp name="RegexExtractor.regex">data-token=\&quot;([^\&quot;]+)</stringProp>
+                <stringProp name="RegexExtractor.template">$1$</stringProp>
+                <stringProp name="RegexExtractor.default">csrf_homepage_token_error</stringProp>
+                <stringProp name="RegexExtractor.match_number">$1</stringProp>
+              </RegexExtractor>
               <hashTree/>
             </hashTree>
             <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="logo-small.svg">
@@ -446,7 +452,7 @@
                   <elementProp name="csrf_token" elementType="HTTPArgument">
                     <boolProp name="HTTPArgument.always_encode">true</boolProp>
                     <stringProp name="Argument.name">csrf_token</stringProp>
-                    <stringProp name="Argument.value">4lugisEkHLWhAdY-0nE-I-f0JEIoJY3gsX4qAwZYZaqNFtxw0ber99bHpSCDVudOBhcTQTvxzePWqc-PfBEbi3Qz5Ncf2mpxT6oh7l81UI1AyWxHyYapiTi7ywvFlxGk1tqmjIGoEzhVjnqr9n0fpvvO55nzFJPv37feY_HWR5VX8_oebAc=</stringProp>
+                    <stringProp name="Argument.value">${csrf_variable_homepage}</stringProp>
                     <stringProp name="Argument.metadata">=</stringProp>
                     <boolProp name="HTTPArgument.use_equals">true</boolProp>
                   </elementProp>
