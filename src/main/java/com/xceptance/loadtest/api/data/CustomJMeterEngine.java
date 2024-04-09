@@ -13,7 +13,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.jmeter.config.Arguments;
 import org.apache.jmeter.config.ConfigTestElement;
 import org.apache.jmeter.control.Controller;
-import org.apache.jmeter.control.TransactionController;
 import org.apache.jmeter.control.TransactionSampler;
 import org.apache.jmeter.engine.PreCompiler;
 import org.apache.jmeter.engine.StandardJMeterEngine;
@@ -27,7 +26,6 @@ import org.apache.jmeter.protocol.http.control.Authorization;
 import org.apache.jmeter.protocol.http.control.HeaderManager;
 import org.apache.jmeter.protocol.http.sampler.HTTPSamplerProxy;
 import org.apache.jmeter.samplers.SampleEvent;
-import org.apache.jmeter.samplers.SampleListener;
 import org.apache.jmeter.samplers.SampleResult;
 import org.apache.jmeter.samplers.Sampler;
 import org.apache.jmeter.testbeans.TestBeanHelper;
@@ -41,7 +39,6 @@ import org.apache.jmeter.threads.JMeterContext;
 import org.apache.jmeter.threads.JMeterContext.TestLogicalAction;
 import org.apache.jmeter.threads.JMeterContextService;
 import org.apache.jmeter.threads.JMeterVariables;
-import org.apache.jmeter.threads.ListenerNotifier;
 import org.apache.jmeter.threads.PostThreadGroup;
 import org.apache.jmeter.threads.SamplePackage;
 import org.apache.jmeter.threads.SetupThreadGroup;
@@ -65,7 +62,6 @@ public class CustomJMeterEngine extends StandardJMeterEngine
     private HashTree test;
     private static final List<TestStateListener> testList = new ArrayList<>();
     private final List<AbstractThreadGroup> groups = new CopyOnWriteArrayList<>();
-    private boolean tearDownOnShutdown;
     public JMeterVariables threadVars;
     private TestCompiler compiler;
     public static final String LAST_SAMPLE_OK = "JMeterThread.last_sample_ok"; // $NON-NLS-1$
@@ -80,7 +76,6 @@ public class CustomJMeterEngine extends StandardJMeterEngine
     private Controller mainController;
     private final boolean isSameUserOnNextIteration = true;
     private Collection<TestIterationListener> testIterationStartListeners;
-    private List<SampleListener> sampleListeners;
     private Sampler sam;
     private FindTestElementsUpToRootTraverser pathToRootTraverser;
     private List<Controller> controllersToRoot;
@@ -208,8 +203,6 @@ public class CustomJMeterEngine extends StandardJMeterEngine
                         {
                             context.setTestLogicalAction(TestLogicalAction.CONTINUE);
                             sam = null;
-                            // already done after the request was called
-//                            setLastSampleOk(context.getVariables(), true);
                         }
                         else 
                         {
@@ -231,7 +224,7 @@ public class CustomJMeterEngine extends StandardJMeterEngine
                         }
 
                         // It would be possible to add finally for Thread Loop here
-                        if (mainController.isDone()) 
+                        if (mainController.isDone() || sam == null) 
                         {
                             running = false;
                         }
@@ -244,8 +237,6 @@ public class CustomJMeterEngine extends StandardJMeterEngine
                 e.printStackTrace();
             }
         }
-
-//        notifyTestListenersOfEnd(testListeners);
         JMeterContextService.endTest();
     }
     
@@ -261,17 +252,6 @@ public class CustomJMeterEngine extends StandardJMeterEngine
         
         controller = controllersToRoot.get(0);
         return StringUtils.isNotBlank(controller.getName()) ? controller.getName() : "Action " + index;
-    }
-    
-    private static Controller findRealSampler(Sampler sampler) 
-    {
-        Controller contr = null;
-        Sampler realSampler = sampler;
-        while (realSampler instanceof Controller) 
-        {
-            contr = ((TransactionController) sampler);
-        }
-        return contr;
     }
     
     private SampleResult processSampler(Sampler current, Sampler parent, JMeterContext threadContext) 
@@ -362,7 +342,7 @@ public class CustomJMeterEngine extends StandardJMeterEngine
             //*************************************************************
             try
             {
-                HttpResponse request = buildAndExecuteRequest(result ,pack, current.getName());
+                HttpResponse request = buildAndExecuteRequest(result, pack, current.getName());
 
                 // set the response to jmeter results, null for platform default encoding
                 result.setResponseData(request.getContentAsString(), null);
@@ -516,7 +496,8 @@ public class CustomJMeterEngine extends StandardJMeterEngine
     
     private static void runPostProcessors(List<? extends PostProcessor> extractors) 
     {
-        for (PostProcessor ex : extractors) {
+        for (PostProcessor ex : extractors) 
+        {
             TestBeanHelper.prepare((TestElement) ex);
             ex.process();
         }
@@ -524,7 +505,8 @@ public class CustomJMeterEngine extends StandardJMeterEngine
 
     private static void runPreProcessors(List<? extends PreProcessor> preProcessors) 
     {
-        for (PreProcessor ex : preProcessors) {
+        for (PreProcessor ex : preProcessors) 
+        {
             TestBeanHelper.prepare((TestElement) ex);
             ex.process();
         }
@@ -617,33 +599,5 @@ public class CustomJMeterEngine extends StandardJMeterEngine
         result.setGroupThreads(nbActiveThreadsInThreadGroup);
         result.setAllThreads(nbTotalActiveThreads);
         result.setThreadName(""); // no thread name
-    }
-    
-    private void startThreadGroup(AbstractThreadGroup group, int groupCount, SearchByClass<?> searcher, List<?> testLevelElements, ListenerNotifier notifier)
-    {
-        try 
-        {
-            int numThreads = group.getNumThreads();
-            JMeterContextService.addTotalThreads(numThreads);
-//            String groupName = group.getName();
-            ListedHashTree threadGroupTree = (ListedHashTree) searcher.getSubTree(group);
-            threadGroupTree.add(group, testLevelElements);
-
-            groups.add(group);
-            group.start(groupCount, notifier, threadGroupTree, this);
-        } 
-        catch (JMeterStopTestException ex) { // NOSONAR Reported by log
-            JMeterUtils.reportErrorToUser("Error occurred starting thread group :" + group.getName()+ ", error message:"+ex.getMessage()
-                +", \r\nsee log file for more details", ex);
-            return; // no point continuing
-        }
-    }
-    
-    private void waitThreadsStopped() 
-    {
-        // ConcurrentHashMap does not need synch. here
-        for (AbstractThreadGroup threadGroup : groups) {
-            threadGroup.waitThreadsStopped();
-        }
     }
 }
