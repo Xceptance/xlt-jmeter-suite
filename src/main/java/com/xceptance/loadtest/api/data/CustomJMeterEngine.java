@@ -1,13 +1,8 @@
 package com.xceptance.loadtest.api.data;
 
-import java.net.URL;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.CopyOnWriteArrayList;
-
+import com.xceptance.loadtest.api.util.Actions;
+import com.xceptance.xlt.engine.httprequest.HttpRequest;
+import com.xceptance.xlt.engine.httprequest.HttpResponse;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.jmeter.config.Arguments;
@@ -33,16 +28,8 @@ import org.apache.jmeter.testelement.TestElement;
 import org.apache.jmeter.testelement.TestIterationListener;
 import org.apache.jmeter.testelement.TestStateListener;
 import org.apache.jmeter.testelement.property.CollectionProperty;
-import org.apache.jmeter.threads.AbstractThreadGroup;
-import org.apache.jmeter.threads.FindTestElementsUpToRootTraverser;
-import org.apache.jmeter.threads.JMeterContext;
+import org.apache.jmeter.threads.*;
 import org.apache.jmeter.threads.JMeterContext.TestLogicalAction;
-import org.apache.jmeter.threads.JMeterContextService;
-import org.apache.jmeter.threads.JMeterVariables;
-import org.apache.jmeter.threads.PostThreadGroup;
-import org.apache.jmeter.threads.SamplePackage;
-import org.apache.jmeter.threads.SetupThreadGroup;
-import org.apache.jmeter.threads.TestCompiler;
 import org.apache.jmeter.util.JMeterUtils;
 import org.apache.jorphan.collections.HashTree;
 import org.apache.jorphan.collections.ListedHashTree;
@@ -52,9 +39,9 @@ import org.apiguardian.api.API;
 import org.htmlunit.HttpMethod;
 import org.junit.Assert;
 
-import com.xceptance.loadtest.api.util.Actions;
-import com.xceptance.xlt.engine.httprequest.HttpRequest;
-import com.xceptance.xlt.engine.httprequest.HttpResponse;
+import java.net.URL;
+import java.util.*;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public class CustomJMeterEngine extends StandardJMeterEngine
 {
@@ -179,6 +166,10 @@ public class CustomJMeterEngine extends StandardJMeterEngine
         
         while (running) 
         {
+            if(sam instanceof TransactionSampler)
+            {
+                sam = ((TransactionSampler) sam).getSubSampler();
+            }
             name = getParentController(groupTree, index);
             index++;
             
@@ -211,6 +202,27 @@ public class CustomJMeterEngine extends StandardJMeterEngine
                             // get the first parent controller node, for naming and action bundling
                             if (sam != null)
                             {
+                                if(sam instanceof TransactionSampler)
+                                {
+                                    if(((TransactionSampler) sam).isTransactionDone())
+                                    {
+                                        // If we are done processing TransactionControllers with TransactionSamplers
+                                        // we proceed to the next TransactionController
+                                        sam = mainController.next();
+
+                                        // If there are no further TransactionControllers we are done
+                                        if(sam == null)
+                                        {
+                                            running = false;
+                                        }
+                                        break;
+                                    }
+                                    else
+                                    {
+                                        sam = ((TransactionSampler) sam).getSubSampler();
+                                    }
+                                }
+
                                 String newName = getParentController(groupTree, index);
                                 
                                 // TODO adjust naming and check ?
@@ -248,7 +260,7 @@ public class CustomJMeterEngine extends StandardJMeterEngine
         groupTree.traverse(pathToRootTraverser);
         controllersToRoot = pathToRootTraverser.getControllersToRoot();
         
-        Assert.assertFalse("No controller found fo current element.", controllersToRoot.isEmpty());
+        Assert.assertFalse("No controller found for current element.", controllersToRoot.isEmpty());
         
         controller = controllersToRoot.get(0);
         return StringUtils.isNotBlank(controller.getName()) ? controller.getName() : "Action " + index;
