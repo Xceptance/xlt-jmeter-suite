@@ -166,6 +166,8 @@ public class CustomJMeterEngine extends StandardJMeterEngine
         
         while (running) 
         {
+            // In case the user has selected "Generate parent sample" on a Transaction Controller we have to process
+            // the sub samples instead of the actual samplers which usually follow
             if(sam instanceof TransactionSampler)
             {
                 sam = ((TransactionSampler) sam).getSubSampler();
@@ -202,12 +204,14 @@ public class CustomJMeterEngine extends StandardJMeterEngine
                             // get the first parent controller node, for naming and action bundling
                             if (sam != null)
                             {
+                                // If JMeter is processing TransactionControllers with "Generate parent sample" we
+                                // work on the underlying sub samples of the transaction sampler
                                 if(sam instanceof TransactionSampler)
                                 {
+                                    // If all requests, or whatever belongs to this transaction, are processed, continue
                                     if(((TransactionSampler) sam).isTransactionDone())
                                     {
-                                        // If we are done processing TransactionControllers with TransactionSamplers
-                                        // we proceed to the next TransactionController
+                                        // Move to the next TransactionController
                                         sam = mainController.next();
 
                                         // If there are no further TransactionControllers we are done
@@ -219,10 +223,13 @@ public class CustomJMeterEngine extends StandardJMeterEngine
                                     }
                                     else
                                     {
+                                        // Default: The transaction (for example, Visit, has more requests to process)
                                         sam = ((TransactionSampler) sam).getSubSampler();
                                     }
                                 }
 
+                                // By default we take a look whether the new sample is in a new TransactionController
+                                // and therefore has another name. If so, we need to start a new action
                                 String newName = getParentController(groupTree, index);
                                 
                                 // TODO adjust naming and check ?

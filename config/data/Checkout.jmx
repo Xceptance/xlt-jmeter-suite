@@ -51,6 +51,7 @@
         <hashTree>
           <TransactionController guiclass="TransactionControllerGui" testclass="TransactionController" testname="Visit">
             <boolProp name="TransactionController.includeTimers">false</boolProp>
+            <boolProp name="TransactionController.parent">true</boolProp>
           </TransactionController>
           <hashTree>
             <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Homepage">
@@ -724,6 +725,7 @@
           </hashTree>
           <TransactionController guiclass="TransactionControllerGui" testclass="TransactionController" testname="Category">
             <boolProp name="TransactionController.includeTimers">false</boolProp>
+            <boolProp name="TransactionController.parent">true</boolProp>
           </TransactionController>
           <hashTree>
             <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="womens/clothing/dresses/">
@@ -1055,6 +1057,7 @@
           </hashTree>
           <TransactionController guiclass="TransactionControllerGui" testclass="TransactionController" testname="DisplayMore">
             <boolProp name="TransactionController.includeTimers">false</boolProp>
+            <boolProp name="TransactionController.parent">true</boolProp>
           </TransactionController>
           <hashTree>
             <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Search-UpdateGrid">
@@ -1144,6 +1147,7 @@
           </hashTree>
           <TransactionController guiclass="TransactionControllerGui" testclass="TransactionController" testname="PDP">
             <boolProp name="TransactionController.includeTimers">false</boolProp>
+            <boolProp name="TransactionController.parent">true</boolProp>
           </TransactionController>
           <hashTree>
             <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="25688632M.html">
@@ -1475,6 +1479,7 @@
           </hashTree>
           <TransactionController guiclass="TransactionControllerGui" testclass="TransactionController" testname="ConfigureProduct">
             <boolProp name="TransactionController.includeTimers">false</boolProp>
+            <boolProp name="TransactionController.parent">true</boolProp>
           </TransactionController>
           <hashTree>
             <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Product-Variation">
@@ -1802,6 +1807,7 @@
           </hashTree>
           <TransactionController guiclass="TransactionControllerGui" testclass="TransactionController" testname="AddToCart">
             <boolProp name="TransactionController.includeTimers">false</boolProp>
+            <boolProp name="TransactionController.parent">true</boolProp>
           </TransactionController>
           <hashTree>
             <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Cart-AddProduct">
@@ -2002,6 +2008,7 @@
           </hashTree>
           <TransactionController guiclass="TransactionControllerGui" testclass="TransactionController" testname="ViewCart">
             <boolProp name="TransactionController.includeTimers">false</boolProp>
+            <boolProp name="TransactionController.parent">true</boolProp>
           </TransactionController>
           <hashTree>
             <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="cart">
@@ -2333,6 +2340,7 @@
           </hashTree>
           <TransactionController guiclass="TransactionControllerGui" testclass="TransactionController" testname="EnterCheckout">
             <boolProp name="TransactionController.includeTimers">false</boolProp>
+            <boolProp name="TransactionController.parent">true</boolProp>
           </TransactionController>
           <hashTree>
             <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Checkout-Begin">
@@ -2613,6 +2621,7 @@
           </hashTree>
           <TransactionController guiclass="TransactionControllerGui" testclass="TransactionController" testname="SubmitCustomer">
             <boolProp name="TransactionController.includeTimers">false</boolProp>
+            <boolProp name="TransactionController.parent">true</boolProp>
           </TransactionController>
           <hashTree>
             <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="CheckoutServices-SubmitCustomer">
@@ -2704,6 +2713,7 @@
           </hashTree>
           <TransactionController guiclass="TransactionControllerGui" testclass="TransactionController" testname="SelectShippingMethod">
             <boolProp name="TransactionController.includeTimers">false</boolProp>
+            <boolProp name="TransactionController.parent">true</boolProp>
           </TransactionController>
           <hashTree>
             <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="CheckoutShippingServices-SelectShippingMethod">
@@ -2864,6 +2874,7 @@
           </hashTree>
           <TransactionController guiclass="TransactionControllerGui" testclass="TransactionController" testname="SubmitShipping">
             <boolProp name="TransactionController.includeTimers">false</boolProp>
+            <boolProp name="TransactionController.parent">true</boolProp>
           </TransactionController>
           <hashTree>
             <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="CheckoutShippingServices-SubmitShipping">
@@ -3038,6 +3049,7 @@
           </hashTree>
           <TransactionController guiclass="TransactionControllerGui" testclass="TransactionController" testname="SubmitPayment">
             <boolProp name="TransactionController.includeTimers">false</boolProp>
+            <boolProp name="TransactionController.parent">true</boolProp>
           </TransactionController>
           <hashTree>
             <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="CheckoutServices-SubmitPayment">
