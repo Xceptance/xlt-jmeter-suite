@@ -38,7 +38,7 @@ public class DataSupplier
      */
     private static List<String> getSourceList(final String filename)
     {
-        final Site site = Context.get().data.getSite();
+        final Site site = Context.get().testData.getSite();
 
         // get us a key, just use
         final String key = site.toString() + File.separator + filename;

@@ -68,7 +68,7 @@ public class HttpRequestJmeter extends AbstractAction
     {
         // Adjust action name if necessary, if we go with default and hence we don't rename with the
         // site id
-        final String siteId = Context.getSite().id;
+        final String siteId = Context.get().getSite().id;
         final String newTimerName = JMeterTestCase.getSiteSpecificName(timerName, siteId);
 
         this.setTimerName(newTimerName);
@@ -259,7 +259,7 @@ public class HttpRequestJmeter extends AbstractAction
     private void handleStore(final StoragePrompt storagePrompt, final ReadContext ctx)
     {
         Assert.assertTrue("Response " + storagePrompt.jsonPath + " does not exists.", ctx.read(storagePrompt.jsonPath) != null);
-        Context.get().data.store.put(storagePrompt.name, ctx.read(storagePrompt.jsonPath));
+        Context.get().testData.store.put(storagePrompt.name, ctx.read(storagePrompt.jsonPath));
     }
 
     /**

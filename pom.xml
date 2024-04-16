@@ -42,24 +42,25 @@
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-dependency-plugin</artifactId>
 				<version>3.6.0</version>
-				<executions>
-					<!-- Automatically copy all non-provided dependencies to "target/dependency"
-						when compiling. This ensures that they are present when the test suite is
-						about to be uploaded to the agent machines. -->
-					<execution>
-						<id>copy-dependencies</id>
-						<phase>compile</phase>
-						<goals>
-							<goal>copy-dependencies</goal>
-						</goals>
-						<configuration>
-							<excludeScope>provided</excludeScope>
-						</configuration>
-					</execution>
-				</executions>
 			</plugin>
 		</plugins>
 	</build>
+	
+    <repositories>
+        <repository>
+            <id>central</id>
+            <name>Maven Central Repository</name>
+            <url>https://repo.maven.apache.org/maven2</url>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+        <repository>
+            <id>xceptance-releases</id>
+            <name>Xceptance Nexus</name>
+            <url>https://lab.xceptance.de/nexus/content/repositories/releases/</url>
+        </repository>
+    </repositories>
 
 	<dependencies>
         
@@ -99,6 +100,7 @@
 			<version>7.3.1</version>
 			<scope>provided</scope>
 		</dependency>
+		
 		<dependency>
 			<groupId>com.jayway.jsonpath</groupId>
 			<artifactId>json-path</artifactId>
@@ -116,6 +118,19 @@
 			<artifactId>snakeyaml</artifactId>
 			<version>1.26</version>
 		</dependency>
+		
+        <dependency>
+            <groupId>com.xceptance</groupId>
+            <artifactId>testsuite-foundation</artifactId>
+            <version>0.0.6</version>
+        </dependency>
+        
+        <dependency>
+            <groupId>com.xceptance</groupId>
+            <artifactId>testsuite-addons</artifactId>
+            <version>0.0.4</version>
+        </dependency>
+        
 	</dependencies>
 
 	<organization>

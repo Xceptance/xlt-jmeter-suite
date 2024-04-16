@@ -20,7 +20,7 @@ public class ExclusiveDataSupplier<T>
     public static <T> ExclusiveDataProvider<T> getInstance(final String fileName, final Parser<T> parser) throws FileNotFoundException, IOException
     {
 
-        final Site site = Context.getSite();
+        final Site site = Context.get().getSite();
         final Optional<String> path = DataFileProvider.dataFilePathBySite(site, fileName);
 
         if (path.isPresent())

@@ -5,6 +5,7 @@ import java.net.URISyntaxException;
 import java.util.Optional;
 
 import org.htmlunit.WebClient;
+
 import com.xceptance.loadtest.api.util.Context;
 import com.xceptance.xlt.engine.httprequest.HttpRequest;
 import com.xceptance.xlt.engine.httprequest.HttpResponse;
@@ -37,7 +38,7 @@ public class AuthorizedHttpRequest extends HttpRequest
         // Context.get().data.authorization
         // next take anything from external Context.configuration().authorization aka
         // "general.authorization"
-        header("Authorization", Context.get().data.authorization
-                        .orElseGet(() -> Optional.ofNullable(Context.configuration().authorization).orElseThrow()));
+        header("Authorization", Context.get().testData.authorization
+                        .orElseGet(() -> Optional.ofNullable(Context.get().configuration.authorization).orElseThrow()));
     }
 }

@@ -11,7 +11,7 @@ import com.xceptance.loadtest.api.data.Site;
  *
  * @author Rene Schwietzke
  */
-public class TestData
+public class TestData extends com.xceptance.loadtest.addons.configuration.TestData
 {
     // simple key-value store
     public Map<String, Object> store = new HashMap<>(41);
@@ -35,15 +35,5 @@ public class TestData
         this.site = newSite;
 
         return oldSite;
-    }
-
-    /**
-     * Return the current site
-     *
-     * @return the current site
-     */
-    public Site getSite()
-    {
-        return site;
     }
 }

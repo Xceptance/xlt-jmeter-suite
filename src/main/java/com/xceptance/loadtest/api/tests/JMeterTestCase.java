@@ -14,7 +14,6 @@ import com.xceptance.loadtest.api.data.SiteByMarketShare;
 import com.xceptance.loadtest.api.util.Context;
 import com.xceptance.xlt.api.engine.Session;
 import com.xceptance.xlt.api.util.XltLogger;
-import com.xceptance.xlt.api.util.XltProperties;
 import com.xceptance.xlt.engine.XltWebClient;
 import com.xceptance.xlt.engine.httprequest.HttpRequest;
 
@@ -61,12 +60,8 @@ public abstract class JMeterTestCase extends com.xceptance.xlt.api.tests.Abstrac
         // Set test name depending if we have sites or not
         setTestName(getSiteSpecificName(getTestName(), getSite().id));
 
-        // this moved here to make sure we see the exceptions
-        Context.createContext(
-                        XltProperties.getInstance(),
-                        Session.getCurrent().getUserName(),
-                        getClass().getName(),
-                        getSite());
+        // Create and attach context instance
+        Context.attach(new Context(getClass().getName(), getSite()));
     }
 
     public static String getSiteSpecificName(final String name, final String siteId)
@@ -98,9 +93,9 @@ public abstract class JMeterTestCase extends com.xceptance.xlt.api.tests.Abstrac
     @Before
     public void init() throws Throwable
     {
-        Optional<File> jmeterPorperties = DataFileProvider.dataFileBySite(Context.getSite(), Context.configuration().jmeterFile);
-        Optional<File> upgradeProperties = DataFileProvider.dataFileBySite(Context.getSite(), Context.configuration().upgradeFile);
-        Optional<File> saveServiceProperties = DataFileProvider.dataFileBySite(Context.getSite(), Context.configuration().saveServiceFile);
+        Optional<File> jmeterPorperties = DataFileProvider.dataFileBySite(Context.get().getSite(), Context.get().configuration.jmeterFile);
+        Optional<File> upgradeProperties = DataFileProvider.dataFileBySite(Context.get().getSite(), Context.get().configuration.upgradeFile);
+        Optional<File> saveServiceProperties = DataFileProvider.dataFileBySite(Context.get().getSite(), Context.get().configuration.saveServiceFile);
         
         // set minimum properties for tree loading/parsing
         JMeterUtils.loadJMeterProperties(jmeterPorperties.get().getPath());
@@ -161,6 +156,10 @@ public abstract class JMeterTestCase extends com.xceptance.xlt.api.tests.Abstrac
     {
         // We don't call super, because it logs just a message and that costs even though
         // it is only important for debugging... speed!!!
+        
+        // Release context instance
+        Context.get().releaseContext();
+        
         if (!Context.isLoadTest)
         {
             super.tearDown();
