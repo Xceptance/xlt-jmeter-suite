@@ -4,7 +4,6 @@ import com.xceptance.loadtest.api.configuration.ConfigDistribution;
 import com.xceptance.loadtest.api.configuration.ConfigList;
 import com.xceptance.loadtest.api.configuration.ConfigProbability;
 import com.xceptance.loadtest.api.configuration.ConfigRange;
-import com.xceptance.loadtest.api.configuration.LTProperties;
 import com.xceptance.loadtest.api.configuration.annotations.Property;
 
 /**
@@ -12,16 +11,10 @@ import com.xceptance.loadtest.api.configuration.annotations.Property;
  *
  * @author Rene Schwietzke (Xceptance Software Technologies GmbH)
  */
-public class Configuration
+public class Configuration extends com.xceptance.loadtest.addons.configuration.Configuration
 {
-    /**
-     * The name of the current running TestCase' class
-     */
-    public LTProperties properties;
-
     // ===============================================================
     // Common / General
-
     @Property(key = "general.host", required = false)
     public String host;
 
@@ -72,23 +65,4 @@ public class Configuration
 
     @Property(key = "wiki.continueSearch", immutable = false, required = false)
     public ConfigProbability continueSearch;
-
-    /**
-     * Returns the properties that are current for this context and the source of this
-     * configuration. You can also directly access them, if you like.
-     *
-     * @return the property set
-     */
-    public LTProperties getProperties()
-    {
-        return properties;
-    }
-
-    /**
-     * Constructor
-     */
-    public Configuration()
-    {
-    	super();
-    }
 }

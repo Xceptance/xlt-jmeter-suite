@@ -60,7 +60,7 @@ public class Actions
                 finally
                 {
                     // add an empty "page" as the result of this action
-                    SessionImpl.getCurrent().getRequestHistory().add(JMeterTestCase.getSiteSpecificName(getTimerName(), Context.getSite().id));
+                    SessionImpl.getCurrent().getRequestHistory().add(JMeterTestCase.getSiteSpecificName(getTimerName(), Context.get().getSite().id));
                 }
             }
 
@@ -111,7 +111,7 @@ public class Actions
         {
             try
             {
-                result = action.get(JMeterTestCase.getSiteSpecificName(getTimerName(), Context.getSite().id));
+                result = action.get(JMeterTestCase.getSiteSpecificName(getTimerName(), Context.get().getSite().id));
             }
             catch (final Throwable e)
             {
@@ -138,7 +138,7 @@ public class Actions
             finally
             {
                 // add an empty "page" as the result of this action
-                SessionImpl.getCurrent().getRequestHistory().add(JMeterTestCase.getSiteSpecificName(getTimerName(), Context.getSite().id));
+                SessionImpl.getCurrent().getRequestHistory().add(JMeterTestCase.getSiteSpecificName(getTimerName(), Context.get().getSite().id));
             }
         }
     }

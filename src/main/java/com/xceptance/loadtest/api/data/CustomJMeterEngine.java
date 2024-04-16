@@ -1,10 +1,16 @@
 package com.xceptance.loadtest.api.data;
 
-import com.xceptance.loadtest.api.util.Actions;
-import com.xceptance.xlt.engine.httprequest.HttpRequest;
-import com.xceptance.xlt.engine.httprequest.HttpResponse;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.jmeter.assertions.Assertion;
+import org.apache.jmeter.assertions.AssertionResult;
 import org.apache.jmeter.config.Arguments;
 import org.apache.jmeter.config.ConfigTestElement;
 import org.apache.jmeter.control.Controller;
@@ -24,41 +30,44 @@ import org.apache.jmeter.samplers.SampleEvent;
 import org.apache.jmeter.samplers.SampleResult;
 import org.apache.jmeter.samplers.Sampler;
 import org.apache.jmeter.testbeans.TestBeanHelper;
+import org.apache.jmeter.testelement.AbstractScopedAssertion;
+import org.apache.jmeter.testelement.AbstractTestElement;
 import org.apache.jmeter.testelement.TestElement;
 import org.apache.jmeter.testelement.TestIterationListener;
 import org.apache.jmeter.testelement.TestStateListener;
 import org.apache.jmeter.testelement.property.CollectionProperty;
-import org.apache.jmeter.threads.*;
+import org.apache.jmeter.threads.AbstractThreadGroup;
+import org.apache.jmeter.threads.FindTestElementsUpToRootTraverser;
+import org.apache.jmeter.threads.JMeterContext;
 import org.apache.jmeter.threads.JMeterContext.TestLogicalAction;
+import org.apache.jmeter.threads.JMeterContextService;
+import org.apache.jmeter.threads.JMeterVariables;
+import org.apache.jmeter.threads.PostThreadGroup;
+import org.apache.jmeter.threads.SamplePackage;
+import org.apache.jmeter.threads.SetupThreadGroup;
+import org.apache.jmeter.threads.TestCompiler;
 import org.apache.jmeter.util.JMeterUtils;
 import org.apache.jorphan.collections.HashTree;
 import org.apache.jorphan.collections.ListedHashTree;
 import org.apache.jorphan.collections.SearchByClass;
+import org.apache.jorphan.util.JMeterError;
 import org.apache.jorphan.util.JMeterStopTestException;
 import org.apiguardian.api.API;
 import org.htmlunit.HttpMethod;
 import org.junit.Assert;
 
-import java.net.URL;
-import java.util.*;
-import java.util.concurrent.CopyOnWriteArrayList;
+import com.xceptance.loadtest.api.events.EventLogger;
+import com.xceptance.loadtest.api.util.Actions;
+import com.xceptance.xlt.engine.httprequest.HttpRequest;
+import com.xceptance.xlt.engine.httprequest.HttpResponse;
 
 public class CustomJMeterEngine extends StandardJMeterEngine
 {
     private boolean running;
     private HashTree test;
     private static final List<TestStateListener> testList = new ArrayList<>();
-    private final List<AbstractThreadGroup> groups = new CopyOnWriteArrayList<>();
-    public JMeterVariables threadVars;
+    private JMeterVariables threadVars;
     private TestCompiler compiler;
-    public static final String LAST_SAMPLE_OK = "JMeterThread.last_sample_ok"; // $NON-NLS-1$
-    static final String VAR_IS_SAME_USER_KEY = "__jmv_SAME_USER";
-    public static final String PACKAGE_OBJECT = "JMeterThread.pack"; // $NON-NLS-1$
-    
-    private static final String TRUE = Boolean.toString(true); // i.e. "true"
-    
-    private String jmeterVariable = "${%s}";
-    
     private CustomJMeterEngine engine = null; // For access to stop methods.
     private Controller mainController;
     private final boolean isSameUserOnNextIteration = true;
@@ -69,6 +78,11 @@ public class CustomJMeterEngine extends StandardJMeterEngine
     private Controller controller;
     private String name;
     private int index;
+    
+    private static final String LAST_SAMPLE_OK = "JMeterThread.last_sample_ok"; // $NON-NLS-1$
+    private static final String VAR_IS_SAME_USER_KEY = "__jmv_SAME_USER";
+    private static final String PACKAGE_OBJECT = "JMeterThread.pack"; // $NON-NLS-1$
+    private static final String TRUE = Boolean.toString(true); // i.e. "true"
     
     @Override
     public void configure(HashTree testTree)
@@ -123,10 +137,8 @@ public class CustomJMeterEngine extends StandardJMeterEngine
         testList.clear(); // no longer needed
 
         test.traverse(new TurnElementsOn());
-//        notifyTestListenersOfStart(testListeners);
 
         List<?> testLevelElements = new ArrayList<>(test.list(test.getArray()[0]));
-//        removeThreadGroups(testLevelElements);
 
         SearchByClass<SetupThreadGroup> setupSearcher = new SearchByClass<>(SetupThreadGroup.class);
         SearchByClass<AbstractThreadGroup> searcher = new SearchByClass<>(AbstractThreadGroup.class);
@@ -142,9 +154,6 @@ public class CustomJMeterEngine extends StandardJMeterEngine
         // and the listeners, and the timer
         
         Iterator<AbstractThreadGroup> iter = searcher.getSearchResults().iterator();
-
-//        ListenerNotifier notifier = new ListenerNotifier();
-
         JMeterContextService.clearTotalThreads();
         
         Collection<AbstractThreadGroup> searchResults = searcher.getSearchResults();
@@ -166,12 +175,6 @@ public class CustomJMeterEngine extends StandardJMeterEngine
         
         while (running) 
         {
-            // In case the user has selected "Generate parent sample" on a Transaction Controller we have to process
-            // the sub samples instead of the actual samplers which usually follow
-            if(sam instanceof TransactionSampler)
-            {
-                sam = ((TransactionSampler) sam).getSubSampler();
-            }
             name = getParentController(groupTree, index);
             index++;
             
@@ -204,32 +207,6 @@ public class CustomJMeterEngine extends StandardJMeterEngine
                             // get the first parent controller node, for naming and action bundling
                             if (sam != null)
                             {
-                                // If JMeter is processing TransactionControllers with "Generate parent sample" we
-                                // work on the underlying sub samples of the transaction sampler
-                                if(sam instanceof TransactionSampler)
-                                {
-                                    // If all requests, or whatever belongs to this transaction, are processed, continue
-                                    if(((TransactionSampler) sam).isTransactionDone())
-                                    {
-                                        // Move to the next TransactionController
-                                        sam = mainController.next();
-
-                                        // If there are no further TransactionControllers we are done
-                                        if(sam == null)
-                                        {
-                                            running = false;
-                                        }
-                                        break;
-                                    }
-                                    else
-                                    {
-                                        // Default: The transaction (for example, Visit, has more requests to process)
-                                        sam = ((TransactionSampler) sam).getSubSampler();
-                                    }
-                                }
-
-                                // By default we take a look whether the new sample is in a new TransactionController
-                                // and therefore has another name. If so, we need to start a new action
                                 String newName = getParentController(groupTree, index);
                                 
                                 // TODO adjust naming and check ?
@@ -243,7 +220,7 @@ public class CustomJMeterEngine extends StandardJMeterEngine
                         }
 
                         // It would be possible to add finally for Thread Loop here
-                        if (mainController.isDone() || sam == null) 
+                        if (mainController.isDone()) 
                         {
                             running = false;
                         }
@@ -267,7 +244,7 @@ public class CustomJMeterEngine extends StandardJMeterEngine
         groupTree.traverse(pathToRootTraverser);
         controllersToRoot = pathToRootTraverser.getControllersToRoot();
         
-        Assert.assertFalse("No controller found for current element.", controllersToRoot.isEmpty());
+        Assert.assertFalse("No controller found fo current element.", controllersToRoot.isEmpty());
         
         controller = controllersToRoot.get(0);
         return StringUtils.isNotBlank(controller.getName()) ? controller.getName() : "Action " + index;
@@ -369,7 +346,7 @@ public class CustomJMeterEngine extends StandardJMeterEngine
                 
                 threadVars.putObject(VAR_IS_SAME_USER_KEY, isSameUserOnNextIteration);
                 threadContext.setVariables(threadVars);
-                setLastSampleOk(threadVars, true);
+//                setLastSampleOk(threadVars, true);
                 
                 // set the variables into the engine for mapping
                 putVariables(threadVars);
@@ -388,7 +365,8 @@ public class CustomJMeterEngine extends StandardJMeterEngine
                 int nbTotalActiveThreads = JMeterContextService.getNumberOfThreads();
                 fillThreadInformation(result, nbActiveThreadsInThreadGroup, nbTotalActiveThreads);
                 SampleResult[] subResults = result.getSubResults();
-                if (subResults != null) {
+                if (subResults != null) 
+                {
                     for (SampleResult subResult : subResults) 
                     {
                         fillThreadInformation(subResult, nbActiveThreadsInThreadGroup, nbTotalActiveThreads);
@@ -396,6 +374,7 @@ public class CustomJMeterEngine extends StandardJMeterEngine
                 }
                 threadContext.setPreviousResult(result);
                 runPostProcessors(pack.getPostProcessors());
+                checkAssertions(pack.getAssertions(), result, threadContext);
                 compiler.done(pack);
                 // Add the result as subsample of transaction if we are in a transaction
                 if (transactionSampler != null && !result.isIgnore()) 
@@ -454,6 +433,8 @@ public class CustomJMeterEngine extends StandardJMeterEngine
             Authorization authForURL = am.getAuthForURL(new URL(baseUrl));
             if (authForURL != null)
             {
+                // used from aith manager which also ensure Kerberos connection, needs check if we need this
+                // am.getSubjectForUrl(new URL(baseUrl));
                 setBasicAuthenticationHeader(request, authForURL.getUser(), authForURL.getPass());
             }
         }
@@ -468,7 +449,7 @@ public class CustomJMeterEngine extends StandardJMeterEngine
         HttpResponse response = request.fire();
         
         // check if the request was successful
-        response.checkStatusCode(200);
+//        response.checkStatusCode(200);
         
         return response;
     }
@@ -618,5 +599,96 @@ public class CustomJMeterEngine extends StandardJMeterEngine
         result.setGroupThreads(nbActiveThreadsInThreadGroup);
         result.setAllThreads(nbTotalActiveThreads);
         result.setThreadName(""); // no thread name
+    }
+    
+    private static void checkAssertions(List<? extends Assertion> assertions, SampleResult parent, JMeterContext threadContext) 
+    {
+        for (Assertion assertion : assertions) 
+        {
+            TestBeanHelper.prepare((TestElement) assertion);
+            if (assertion instanceof AbstractScopedAssertion) 
+            {
+                AbstractScopedAssertion scopedAssertion = (AbstractScopedAssertion) assertion;
+                String scope = scopedAssertion.fetchScope();
+                if (scopedAssertion.isScopeParent(scope)
+                    || scopedAssertion.isScopeAll(scope)
+                    || scopedAssertion.isScopeVariable(scope)) 
+                {
+                    processAssertion(parent, assertion);
+                }
+                if (scopedAssertion.isScopeChildren(scope)
+                    || scopedAssertion.isScopeAll(scope)) 
+                {
+                    recurseAssertionChecks(parent, assertion, 3);
+                }
+            } else 
+            {
+                processAssertion(parent, assertion);
+            }
+        }
+        setLastSampleOk(threadContext.getVariables(), parent.isSuccessful());
+    }
+
+    private static void recurseAssertionChecks(SampleResult parent, Assertion assertion, int level) 
+    {
+        if (level < 0) 
+        {
+            return;
+        }
+        SampleResult[] children = parent.getSubResults();
+        boolean childError = false;
+        for (SampleResult childSampleResult : children) 
+        {
+            processAssertion(childSampleResult, assertion);
+            recurseAssertionChecks(childSampleResult, assertion, level - 1);
+            if (!childSampleResult.isSuccessful()) 
+            {
+                childError = true;
+            }
+        }
+        // If parent is OK, but child failed, add a message and flag the parent as failed
+        if (childError && parent.isSuccessful()) 
+        {
+            AssertionResult assertionResult = new AssertionResult(((AbstractTestElement) assertion).getName());
+            assertionResult.setResultForFailure("One or more sub-samples failed");
+            parent.addAssertionResult(assertionResult);
+            parent.setSuccessful(false);
+        }
+    }
+
+    private static void processAssertion(SampleResult result, Assertion assertion) 
+    {
+        AssertionResult assertionResult;
+        try 
+        {
+            assertionResult = assertion.getResult(result);
+        } 
+        catch (AssertionError e) 
+        {
+            EventLogger.DEFAULT.warn("Error processing Assertion.", e.getMessage());
+            assertionResult = new AssertionResult("Assertion failed! See log file (debug level, only).");
+            assertionResult.setFailure(true);
+            assertionResult.setFailureMessage(e.toString());
+        } 
+        catch (JMeterError e) 
+        {
+            EventLogger.DEFAULT.warn("Error processing Assertion.", e.getMessage());
+            assertionResult = new AssertionResult("Assertion failed! See log file.");
+            assertionResult.setError(true);
+            assertionResult.setFailureMessage(e.toString());
+        } 
+        catch (Exception e) 
+        {
+            EventLogger.DEFAULT.warn("Exception processing Assertion.", e.getMessage());
+            assertionResult = new AssertionResult("Assertion failed! See log file.");
+            assertionResult.setError(true);
+            assertionResult.setFailureMessage(e.toString());
+        }
+        finally
+        {
+            EventLogger.DEFAULT.warn("Assertion was found.", result.getResponseCode());
+        }
+        result.setSuccessful(result.isSuccessful() && !(assertionResult.isError() || assertionResult.isFailure()));
+        result.addAssertionResult(assertionResult);
     }
 }
