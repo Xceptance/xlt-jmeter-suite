@@ -3,19 +3,17 @@ package com.xceptance.loadtest.jmeter.tests;
 import java.io.File;
 import java.util.Optional;
 
-import org.apache.jmeter.engine.StandardJMeterEngine;
 import org.apache.jmeter.save.SaveService;
 import org.apache.jmeter.util.JMeterUtils;
 import org.apache.jorphan.collections.HashTree;
 import org.junit.Assert;
 
-import com.xceptance.loadtest.api.data.CustomJMeterEngine;
 import com.xceptance.loadtest.api.data.DataFileProvider;
-import com.xceptance.loadtest.api.data.NonSiteRelatedTest;
-import com.xceptance.loadtest.api.tests.JMeterTestCase;
+import com.xceptance.loadtest.controll.CustomJMeterEngine;
+import com.xceptance.loadtest.controll.JMeterTestCase;
 
 
-public class TJmeterNative extends JMeterTestCase implements NonSiteRelatedTest
+public class TJmeterNative extends JMeterTestCase
 {
     private HashTree tree;
     private String fileName;

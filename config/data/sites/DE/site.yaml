@@ -1,5 +1,0 @@
-# The properties per site. Here configurations for this specific site can be placed.
-# It can also be placed in the sites.yaml as used in this example
-
-general:
-   host: wikipedia.org

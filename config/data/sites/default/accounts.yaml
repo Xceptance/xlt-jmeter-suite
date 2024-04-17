@@ -1,0 +1,44 @@
+addresses:
+    - &address01 
+      id: default
+      # lastName: Smith # auto setup based on random data
+      # firstName: Peter
+      addressLine1: 120 Presidential Way
+      addressLine2: ""
+      city: Woburn
+      zip: "01801"
+      state: Massachusetts
+      stateCode: MA
+      countryCode: US
+      country: United States
+      # for random phone number replace phone number with alphabetic chars, like
+      # 333xxxxxx3
+      phone: 3333333333
+    - &address02 
+      id: alternative
+      # lastName: Smith # auto setup based on random data
+      # firstName: Peter
+      addressLine1: 6 Wall St.
+      addressLine2: ""
+      city: Burlington
+      zip: "01803"
+      state: Massachusetts
+      stateCode: MA
+      countryCode: US
+      country: United States
+      # for random phone number replace phone number with alphabetic chars, like
+      # 333xxxxxx4
+      phone: 3333333334
+
+account:
+    - email: 
+      firstname:
+      lastname:
+      # login: accounts knows to fall back to email 
+      password: ${account.defaults.password}
+      billingAddress: *address01
+      shippingAddress: *address01
+      alternativeAddress: *address02
+      # creditCards: 
+        # we get us global cards, local cards would have to be in this file and likely referenced here
+      orderID: # placeholder for special scenarios

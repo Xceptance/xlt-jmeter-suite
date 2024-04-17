@@ -1,7 +1,0 @@
-Lasttest
-Test
-Qualitätsmanagement
-Qualitätssicherung
-Performance Tests
-Softwaretest
-Unit testing
