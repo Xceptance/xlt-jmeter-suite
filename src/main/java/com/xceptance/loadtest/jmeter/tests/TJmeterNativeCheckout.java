@@ -9,8 +9,8 @@ import org.apache.jorphan.collections.HashTree;
 import org.junit.Assert;
 
 import com.xceptance.loadtest.api.data.DataFileProvider;
-import com.xceptance.loadtest.controll.CustomJMeterEngine;
-import com.xceptance.loadtest.controll.JMeterTestCase;
+import com.xceptance.loadtest.control.CustomJMeterEngine;
+import com.xceptance.loadtest.control.JMeterTestCase;
 
 
 public class TJmeterNativeCheckout extends JMeterTestCase

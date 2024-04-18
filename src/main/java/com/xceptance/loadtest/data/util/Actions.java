@@ -1,6 +1,6 @@
 package com.xceptance.loadtest.data.util;
 
-import com.xceptance.loadtest.controll.JMeterTestCase;
+import com.xceptance.loadtest.control.JMeterTestCase;
 import com.xceptance.xlt.api.actions.AbstractAction;
 import com.xceptance.xlt.engine.SessionImpl;
 

@@ -1,4 +1,4 @@
-package com.xceptance.loadtest.controll;
+package com.xceptance.loadtest.control;
 
 import java.util.ArrayList;
 import java.util.List;

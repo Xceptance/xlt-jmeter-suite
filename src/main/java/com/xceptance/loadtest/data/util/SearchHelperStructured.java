@@ -7,7 +7,7 @@ import java.util.List;
 import org.apache.jorphan.collections.HashTree;
 import org.apache.jorphan.collections.HashTreeTraverser;
 
-import com.xceptance.loadtest.controll.SearchClass;
+import com.xceptance.loadtest.control.SearchClass;
 
 /**
  * 

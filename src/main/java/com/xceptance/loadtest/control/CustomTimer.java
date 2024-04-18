@@ -1,4 +1,4 @@
-package com.xceptance.loadtest.controll;
+package com.xceptance.loadtest.control;
 
 import com.xceptance.loadtest.api.data.CustomData;
 import com.xceptance.xlt.api.engine.Session;

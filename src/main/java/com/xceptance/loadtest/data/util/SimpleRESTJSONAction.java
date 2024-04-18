@@ -10,7 +10,7 @@ import org.junit.Assert;
 
 import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.ReadContext;
-import com.xceptance.loadtest.controll.JMeterTestCase;
+import com.xceptance.loadtest.control.JMeterTestCase;
 import com.xceptance.xlt.api.actions.AbstractAction;
 import com.xceptance.xlt.engine.SessionImpl;
 import com.xceptance.xlt.engine.httprequest.HttpRequest;

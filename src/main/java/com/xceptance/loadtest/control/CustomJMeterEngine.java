@@ -1,4 +1,4 @@
-package com.xceptance.loadtest.controll;
+package com.xceptance.loadtest.control;
 
 import java.net.URL;
 import java.util.ArrayList;
