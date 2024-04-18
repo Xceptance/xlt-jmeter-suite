@@ -1,7 +1,0 @@
-Load testing
-Test
-Quality management
-Quality assurance
-Performance testing
-Softwaretest
-Unit testing

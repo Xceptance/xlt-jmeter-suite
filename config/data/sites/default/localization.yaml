@@ -1,0 +1,18 @@
+# this is for the English sites because they are setup as fallback to English
+localization:
+    css:
+        category: "category"
+    cartLineItem:
+        availability:
+          inStock: "In Stock"
+          outOfStock: "not available"
+    account:
+        paymentCard:
+          addPayment: "Add New Payment"
+        addressbookCard:
+          addAddress: "Add New Address"
+        passwordCard:
+          changePassword: "Change Password"
+        activation:
+          subjectPattern: "TODO Complete your registration"
+          linkPattern: "If the link does not work, open the following URL:\\s*\\n*(http[^\\s]+)"

@@ -1,7 +1,6 @@
 package com.xceptance.loadtest.jmeter.configuration;
 
 import com.xceptance.loadtest.api.configuration.ConfigDistribution;
-import com.xceptance.loadtest.api.configuration.ConfigList;
 import com.xceptance.loadtest.api.configuration.ConfigProbability;
 import com.xceptance.loadtest.api.configuration.ConfigRange;
 import com.xceptance.loadtest.api.configuration.annotations.Property;
@@ -44,9 +43,6 @@ public class Configuration extends com.xceptance.loadtest.addons.configuration.C
     
     @Property(key = "com.xceptance.xlt.default.jmeter.upgrade.file", required = true)
     public String upgradeFile;
-    
-    @Property(key = "com.xceptance.xlt.jmeter.allowed.protocols", required = true, autocomplete = false)
-    public ConfigList allowedProtocols;
 
     // =========================================================
     // jsonplaceholder test case config
