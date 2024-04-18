@@ -1,13 +1,9 @@
 package com.xceptance.loadtest.control;
 
-import java.lang.reflect.Field;
-import java.net.URL;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-
+import com.xceptance.loadtest.api.events.EventLogger;
+import com.xceptance.loadtest.data.util.Actions;
+import com.xceptance.xlt.engine.httprequest.HttpRequest;
+import com.xceptance.xlt.engine.httprequest.HttpResponse;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.jmeter.assertions.Assertion;
@@ -32,22 +28,10 @@ import org.apache.jmeter.samplers.SampleEvent;
 import org.apache.jmeter.samplers.SampleResult;
 import org.apache.jmeter.samplers.Sampler;
 import org.apache.jmeter.testbeans.TestBeanHelper;
-import org.apache.jmeter.testelement.AbstractScopedAssertion;
-import org.apache.jmeter.testelement.AbstractTestElement;
-import org.apache.jmeter.testelement.TestElement;
-import org.apache.jmeter.testelement.TestIterationListener;
-import org.apache.jmeter.testelement.TestStateListener;
+import org.apache.jmeter.testelement.*;
 import org.apache.jmeter.testelement.property.CollectionProperty;
-import org.apache.jmeter.threads.AbstractThreadGroup;
-import org.apache.jmeter.threads.FindTestElementsUpToRootTraverser;
-import org.apache.jmeter.threads.JMeterContext;
+import org.apache.jmeter.threads.*;
 import org.apache.jmeter.threads.JMeterContext.TestLogicalAction;
-import org.apache.jmeter.threads.JMeterContextService;
-import org.apache.jmeter.threads.JMeterVariables;
-import org.apache.jmeter.threads.PostThreadGroup;
-import org.apache.jmeter.threads.SamplePackage;
-import org.apache.jmeter.threads.SetupThreadGroup;
-import org.apache.jmeter.threads.TestCompiler;
 import org.apache.jmeter.util.JMeterUtils;
 import org.apache.jorphan.collections.HashTree;
 import org.apache.jorphan.collections.ListedHashTree;
@@ -58,10 +42,9 @@ import org.apiguardian.api.API;
 import org.htmlunit.HttpMethod;
 import org.junit.Assert;
 
-import com.xceptance.loadtest.api.events.EventLogger;
-import com.xceptance.loadtest.data.util.Actions;
-import com.xceptance.xlt.engine.httprequest.HttpRequest;
-import com.xceptance.xlt.engine.httprequest.HttpResponse;
+import java.lang.reflect.Field;
+import java.net.URL;
+import java.util.*;
 
 public class CustomJMeterEngine extends StandardJMeterEngine
 {
@@ -177,6 +160,13 @@ public class CustomJMeterEngine extends StandardJMeterEngine
         
         while (running) 
         {
+            // In case the user has selected "Generate parent sample" on a Transaction Controller we have to process
+            // the sub samples instead of the actual samplers which usually follow
+            if(sam instanceof TransactionSampler)
+            {
+                sam = ((TransactionSampler) sam).getSubSampler();
+            }
+
             name = getParentController(groupTree, index);
             index++;
             
@@ -206,6 +196,30 @@ public class CustomJMeterEngine extends StandardJMeterEngine
                         // get the first parent controller node, for naming and action bundling
                         if (sam != null && !mainController.isDone())
                         {
+                            // If JMeter is processing TransactionControllers with "Generate parent sample" we
+                            // work on the underlying sub samples of the transaction sampler
+                            if(sam instanceof TransactionSampler)
+                            {
+                                // If all requests, or whatever belongs to this transaction, are processed, continue
+                                if(((TransactionSampler) sam).isTransactionDone())
+                                {
+                                    // Move to the next TransactionController
+                                    sam = mainController.next();
+
+                                    // If there are no further TransactionControllers we are done
+                                    if(sam == null)
+                                    {
+                                        running = false;
+                                    }
+                                    break;
+                                }
+                                else
+                                {
+                                    // Default: The transaction (for example, Visit, has more requests to process)
+                                    sam = ((TransactionSampler) sam).getSubSampler();
+                                }
+                            }
+
                             String newName = getParentController(groupTree, index);
                             
                             // TODO adjust naming and check ?
@@ -249,7 +263,7 @@ public class CustomJMeterEngine extends StandardJMeterEngine
         groupTree.traverse(pathToRootTraverser);
         controllersToRoot = pathToRootTraverser.getControllersToRoot();
         
-        Assert.assertFalse("No controller found fo current element.", controllersToRoot.isEmpty());
+        Assert.assertFalse("No controller found for current element.", controllersToRoot.isEmpty());
         
         controller = controllersToRoot.get(0);
         return StringUtils.isNotBlank(controller.getName()) ? controller.getName() : "Action " + index;
