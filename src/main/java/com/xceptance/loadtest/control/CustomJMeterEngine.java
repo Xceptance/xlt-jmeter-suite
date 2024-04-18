@@ -1,5 +1,6 @@
 package com.xceptance.loadtest.control;
 
+import java.lang.reflect.Field;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -14,6 +15,7 @@ import org.apache.jmeter.assertions.AssertionResult;
 import org.apache.jmeter.config.Arguments;
 import org.apache.jmeter.config.ConfigTestElement;
 import org.apache.jmeter.control.Controller;
+import org.apache.jmeter.control.LoopController;
 import org.apache.jmeter.control.TransactionSampler;
 import org.apache.jmeter.engine.PreCompiler;
 import org.apache.jmeter.engine.StandardJMeterEngine;
@@ -194,8 +196,7 @@ public class CustomJMeterEngine extends StandardJMeterEngine
                         // restart of the next loop
                         // - was requested through threadContext
                         // - or the last sample failed AND the onErrorStartNextLoop option is enabled
-                        if (context.getTestLogicalAction() != TestLogicalAction.CONTINUE
-                                || !lastSampleOk)
+                        if (context.getTestLogicalAction() != TestLogicalAction.CONTINUE || !lastSampleOk)
                         {
                             context.setTestLogicalAction(TestLogicalAction.CONTINUE);
                         }
@@ -226,6 +227,13 @@ public class CustomJMeterEngine extends StandardJMeterEngine
             } 
             catch (Throwable e)
             {
+                if(e instanceof AssertionError)
+                {
+                    AssertionError ae = new AssertionError(e.getMessage());
+                    ae.setStackTrace(e.getStackTrace());
+                    throw ae;
+                }
+
                 // TODO Auto-generated catch block
                 e.printStackTrace();
             }
@@ -317,6 +325,28 @@ public class CustomJMeterEngine extends StandardJMeterEngine
         threadContext.setCurrentSampler(current);
         // Get the sampler ready to sample
         SamplePackage pack = compiler.configureSampler(current);
+
+        List<Controller> controllers = new ArrayList<>();
+        try
+        {
+            Field controllersField = pack.getClass()
+                                         .getDeclaredField("controllers");
+            controllersField.setAccessible(true);
+            controllers = (List<Controller>) controllersField.get(pack);
+        }
+        catch(NoSuchFieldException | IllegalAccessException e)
+        {
+            Assert.fail("Cannot locate field <controllers> in SamplePackage class");
+        }
+
+        for(Controller c : controllers)
+        {
+            if(c instanceof LoopController && ((LoopController) c).getLoops() == -1)
+            {
+                Assert.fail("Infinite loops are currently not supported by XLT");
+            }
+        }
+
         runPreProcessors(pack.getPreProcessors());
         current.setThreadContext(threadContext);
 

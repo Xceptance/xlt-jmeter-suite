@@ -1,5 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Configuration status="off">
+  <Filters>
+    <RegexFilter regex="About to replace in property of type.*" onMatch="DENY" onMismatch="NEUTRAL"/>
+    <RegexFilter regex="Replacement result:.*" onMatch="DENY" onMismatch="NEUTRAL"/>
+    <RegexFilter regex="Won't replace.*" onMatch="DENY" onMismatch="NEUTRAL"/>
+    <RegexFilter regex="Not running version.*" onMatch="DENY" onMismatch="NEUTRAL"/>
+    <RegexFilter regex="adding controller.*" onMatch="DENY" onMismatch="NEUTRAL"/>
+    <RegexFilter regex="Subtracting node.*" onMatch="DENY" onMismatch="NEUTRAL"/>
+    <RegexFilter regex="(?s)Input = .*" onMatch="DENY" onMismatch="NEUTRAL"/>
+  </Filters>
   <Appenders>
     <Console name="Console" target="SYSTEM_OUT">
       <PatternLayout pattern="[%d{HH:mm:ss,SSS}] %-5p [%t] - %m%n" />

@@ -37,7 +37,13 @@ public class Actions
                 }
                 catch (final Throwable e)
                 {
-                    // sadly, this is needed
+                    if(e instanceof AssertionError)
+                    {
+                        AssertionError ae = new AssertionError(e.getMessage());
+                        ae.setStackTrace(e.getStackTrace());
+                        throw ae;
+                    }
+
                     throw new RuntimeException(e);
                 }
             }

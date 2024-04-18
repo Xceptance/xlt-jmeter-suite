@@ -5,6 +5,7 @@
 .settings
 .classpath
 .idea
+*.iml
 
 # Results
 results
