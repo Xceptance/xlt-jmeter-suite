@@ -1,4 +1,4 @@
-package com.xceptance.loadtest.jmeter.components;
+package com.xceptance.loadtest.test;
 
 import com.xceptance.loadtest.api.data.DataFileProvider;
 import com.xceptance.loadtest.control.CustomJMeterEngine;

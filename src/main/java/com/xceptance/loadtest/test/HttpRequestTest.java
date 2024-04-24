@@ -1,4 +1,4 @@
-package com.xceptance.loadtest.jmeter.components;
+package com.xceptance.loadtest.test;
 
 public class HttpRequestTest extends AbstractComponentTest
 {
