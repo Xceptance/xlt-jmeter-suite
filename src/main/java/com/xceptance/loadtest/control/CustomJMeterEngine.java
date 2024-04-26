@@ -1,15 +1,12 @@
 package com.xceptance.loadtest.control;
 
-import com.xceptance.loadtest.api.events.EventLogger;
-import com.xceptance.loadtest.data.util.Actions;
-import com.xceptance.xlt.engine.httprequest.HttpRequest;
-import com.xceptance.xlt.engine.httprequest.HttpResponse;
-import org.apache.commons.codec.binary.Base64;
+import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.List;
+
 import org.apache.commons.lang3.StringUtils;
-import org.apache.jmeter.assertions.Assertion;
-import org.apache.jmeter.assertions.AssertionResult;
-import org.apache.jmeter.config.Arguments;
-import org.apache.jmeter.config.ConfigTestElement;
 import org.apache.jmeter.control.Controller;
 import org.apache.jmeter.control.LoopController;
 import org.apache.jmeter.control.TransactionSampler;
@@ -18,33 +15,34 @@ import org.apache.jmeter.engine.StandardJMeterEngine;
 import org.apache.jmeter.engine.TurnElementsOn;
 import org.apache.jmeter.engine.event.LoopIterationEvent;
 import org.apache.jmeter.engine.event.LoopIterationListener;
-import org.apache.jmeter.processor.PostProcessor;
-import org.apache.jmeter.processor.PreProcessor;
-import org.apache.jmeter.protocol.http.control.AuthManager;
-import org.apache.jmeter.protocol.http.control.Authorization;
-import org.apache.jmeter.protocol.http.control.HeaderManager;
-import org.apache.jmeter.protocol.http.sampler.HTTPSamplerProxy;
 import org.apache.jmeter.samplers.SampleEvent;
 import org.apache.jmeter.samplers.SampleResult;
 import org.apache.jmeter.samplers.Sampler;
-import org.apache.jmeter.testbeans.TestBeanHelper;
-import org.apache.jmeter.testelement.*;
-import org.apache.jmeter.testelement.property.CollectionProperty;
-import org.apache.jmeter.threads.*;
+import org.apache.jmeter.testelement.TestElement;
+import org.apache.jmeter.testelement.TestIterationListener;
+import org.apache.jmeter.testelement.TestStateListener;
+import org.apache.jmeter.threads.AbstractThreadGroup;
+import org.apache.jmeter.threads.FindTestElementsUpToRootTraverser;
+import org.apache.jmeter.threads.JMeterContext;
 import org.apache.jmeter.threads.JMeterContext.TestLogicalAction;
+import org.apache.jmeter.threads.JMeterContextService;
+import org.apache.jmeter.threads.JMeterVariables;
+import org.apache.jmeter.threads.PostThreadGroup;
+import org.apache.jmeter.threads.SamplePackage;
+import org.apache.jmeter.threads.SetupThreadGroup;
+import org.apache.jmeter.threads.TestCompiler;
 import org.apache.jmeter.util.JMeterUtils;
 import org.apache.jorphan.collections.HashTree;
 import org.apache.jorphan.collections.ListedHashTree;
 import org.apache.jorphan.collections.SearchByClass;
-import org.apache.jorphan.util.JMeterError;
 import org.apache.jorphan.util.JMeterStopTestException;
 import org.apiguardian.api.API;
-import org.htmlunit.HttpMethod;
 import org.junit.Assert;
 
-import java.lang.reflect.Field;
-import java.net.URL;
-import java.util.*;
+import com.xceptance.loadtest.data.util.Actions;
+import com.xceptance.loadtest.jmeter.util.AssertionHandler;
+import com.xceptance.loadtest.jmeter.util.HttpRequestHandler;
+import com.xceptance.loadtest.jmeter.util.XLTJMeterUtils;
 
 public class CustomJMeterEngine extends StandardJMeterEngine
 {
@@ -63,12 +61,8 @@ public class CustomJMeterEngine extends StandardJMeterEngine
     private Controller controller;
     private String name;
     private int index;
-    private boolean onErrorStopTest;
-    private boolean onErrorStopTestNow;
-    private boolean onErrorStopThread;
-    private boolean onErrorStartNextLoop;
-    
-    private static final String LAST_SAMPLE_OK = "JMeterThread.last_sample_ok"; // $NON-NLS-1$
+    private AssertionHandler assertionHandler;
+
     private static final String VAR_IS_SAME_USER_KEY = "__jmv_SAME_USER";
     private static final String PACKAGE_OBJECT = "JMeterThread.pack"; // $NON-NLS-1$
     private static final String TRUE = Boolean.toString(true); // i.e. "true"
@@ -157,12 +151,10 @@ public class CustomJMeterEngine extends StandardJMeterEngine
         AbstractThreadGroup group = iter.next();
         ListedHashTree groupTree = (ListedHashTree) searcher.getSubTree(group);
         JMeterContextService.getContext().setSamplingStarted(true);
-        
-        onErrorStopTest = group.getOnErrorStopTest();
-        onErrorStopTestNow = group.getOnErrorStopTestNow();
-        onErrorStopThread = group.getOnErrorStopThread();
-        onErrorStartNextLoop = group.getOnErrorStartNextLoop();
 
+        // init the assertion hanlding
+        assertionHandler = new AssertionHandler(group);
+        
         // get the first item
         sam = mainController.next();
         index = 0;
@@ -191,7 +183,7 @@ public class CustomJMeterEngine extends StandardJMeterEngine
                         processSampler(sam, null, context);
                         context.cleanAfterSample();
 
-                        boolean lastSampleOk = TRUE.equals(context.getVariables().get(LAST_SAMPLE_OK));
+                        boolean lastSampleOk = TRUE.equals(context.getVariables().get(XLTJMeterUtils.LAST_SAMPLE_OK));
                         // restart of the next loop
                         // - was requested through threadContext
                         // - or the last sample failed AND the onErrorStartNextLoop option is enabled
@@ -370,7 +362,7 @@ public class CustomJMeterEngine extends StandardJMeterEngine
             }
         }
 
-        runPreProcessors(pack.getPreProcessors());
+        XLTJMeterUtils.runPreProcessors(pack.getPreProcessors());
         current.setThreadContext(threadContext);
 
         // Hack: save the package for any transaction controllers
@@ -388,14 +380,7 @@ public class CustomJMeterEngine extends StandardJMeterEngine
             //*************************************************************
             try
             {
-                HttpResponse request = buildAndExecuteRequest(result, pack, current.getName());
-
-                // set the response to jmeter results, null for platform default encoding
-                result.setResponseData(request.getContentAsString(), null);
-                result.setResponseHeaders(request.getHeaders().toString());
-                result.setResponseCode(String.valueOf(request.getStatusCode())); // set status code for assertion check
-                result.setResponseMessage(request.getStatusMessage());
-                result.setSuccessful(true); // set the request to success -> otherwise the assertion checker will fail
+                result = HttpRequestHandler.buildAndExecuteRequest(result, pack, current.getName());
                 
                 threadVars.putObject(VAR_IS_SAME_USER_KEY, isSameUserOnNextIteration);
                 threadContext.setVariables(threadVars);
@@ -425,8 +410,11 @@ public class CustomJMeterEngine extends StandardJMeterEngine
                     }
                 }
                 threadContext.setPreviousResult(result);
-                runPostProcessors(pack.getPostProcessors());
-                checkAssertions(pack.getAssertions(), result, threadContext);
+                XLTJMeterUtils.runPostProcessors(pack.getPostProcessors());
+                
+                // check the current assertion status
+                assertionHandler.checkAssertions(pack.getAssertions(), result, threadContext);
+                
                 compiler.done(pack);
                 // Add the result as subsample of transaction if we are in a transaction
                 if (transactionSampler != null && !result.isIgnore()) 
@@ -438,147 +426,13 @@ public class CustomJMeterEngine extends StandardJMeterEngine
             {
                 // This call is done by checkAssertions() , as we don't call it
                 // for isIgnore, we explictely call it here
-                setLastSampleOk(threadContext.getVariables(), result.isSuccessful());
+                XLTJMeterUtils.setLastSampleOk(threadContext.getVariables(), result.isSuccessful());
                 compiler.done(pack);
-            }
-            
-            // Check if thread or test should be stopped
-            if (result.isStopThread() || (!result.isSuccessful() && onErrorStopThread)) 
-            {
-                shutdown();
-            }
-            if (result.isStopTest() || (!result.isSuccessful() && onErrorStopTest))
-            {
-                shutdown();
-            }
-            if (result.isStopTestNow() || (!result.isSuccessful() && onErrorStopTestNow))
-            {
-                shutdown();
-            }
-            if (result.getTestLogicalAction() != TestLogicalAction.CONTINUE) 
-            {
-                threadContext.setTestLogicalAction(result.getTestLogicalAction());
             }
         } 
         else 
         {
             compiler.done(pack); // Finish up
-        }
-    }
-    
-    private void shutdown()
-    {
-        running = false;
-        // TODO terminated error handling
-        Assert.fail("Test encountered an issue and terminated early.");
-    }
-    
-    public HttpResponse buildAndExecuteRequest(SampleResult pack, SamplePackage data, String requestName) throws Throwable
-    {
-        HTTPSamplerProxy sampler = (HTTPSamplerProxy) data.getSampler();
-        HeaderManager hm = null;
-        AuthManager am = null;
-        
-        List<ConfigTestElement> configs = data.getConfigs();
-
-        for (ConfigTestElement element : configs)
-        {
-            if (element instanceof HeaderManager)
-            {
-                hm = (HeaderManager) element;
-            }
-            if (element instanceof AuthManager)
-            {
-                am = (AuthManager) element;
-            }
-        }
-        
-        String method = sampler.getMethod();
-        String baseUrl = pack.getUrlAsString();
-        
-        HttpRequest request = new HttpRequest()
-                .timerName(requestName)
-                .baseUrl(baseUrl)
-                .method(HttpMethod.valueOf(method));
-        
-        if (am != null)
-        {
-            Authorization authForURL = am.getAuthForURL(new URL(baseUrl));
-            if (authForURL != null)
-            {
-                // used from auth manager which also ensure Kerberos connection, needs check if we need this
-                // am.getSubjectForUrl(new URL(baseUrl));
-                setBasicAuthenticationHeader(request, authForURL.getUser(), authForURL.getPass());
-            }
-        }
-        
-        if (hm != null)
-        {
-            // add header data
-            addHeaderData(request, hm);
-        }
-        
-        addArgumentData(request, sampler);
-        HttpResponse response = request.fire();
-        
-        return response;
-    }
-    
-    public void setBasicAuthenticationHeader(HttpRequest request, final String username, final String password)
-    {
-        // Is a username for Basic Authentication configured?
-        if (StringUtils.isNotBlank(username))
-        {
-            // Set the request header.
-            final String userPass = username + ":" + password;
-            final String userPassBase64 = Base64.encodeBase64String(userPass.getBytes());
-
-            request.header("Authorization", "Basic " + userPassBase64);
-        }
-    }
-    
-    private HttpRequest addArgumentData(HttpRequest request, HTTPSamplerProxy requestData)
-    {
-        // check and add arguments if there are any
-        Arguments arguments = requestData.getArguments();
-        if (arguments.getArgumentCount() > 0)
-        {
-            Map<String, String> argumentsAsMap = arguments.getArgumentsAsMap();
-            for (Map.Entry<String, String> entry : argumentsAsMap.entrySet())
-            {
-                request.param(entry.getKey(), entry.getValue());
-            };
-        }
-        return request;
-    }
-    
-    private HttpRequest addHeaderData(HttpRequest request, HeaderManager headerData)
-    {
-        // transform header keys/values from loaded data to request confirm data
-        CollectionProperty headers = headerData.getHeaders();
-        headers.forEach(p -> 
-        {
-            // remove name from the combined value attribute
-            request.header(p.getName(), p.getStringValue().replace(p.getName(), "")); 
-        });
-        return request;
-    }
-    
-    private static void runPostProcessors(List<? extends PostProcessor> extractors) 
-    {
-        for (PostProcessor ex : extractors) 
-        {
-            TestBeanHelper.prepare((TestElement) ex);
-            ex.process();
-        }
-    }
-
-    private static void runPreProcessors(List<? extends PreProcessor> preProcessors) 
-    {
-        for (PreProcessor ex : preProcessors) 
-        {
-            TestBeanHelper.prepare((TestElement) ex);
-            ex.process();
         }
     }
     
@@ -589,7 +443,7 @@ public class CustomJMeterEngine extends StandardJMeterEngine
         threadVars.putAll(threadContext.getVariables());
         threadContext.setVariables(threadVars);
         threadContext.setThreadNum(1);
-        setLastSampleOk(threadVars, true);
+        XLTJMeterUtils.setLastSampleOk(threadVars, true);
         threadContext.setEngine(engine);
         
         // variables are set at this point
@@ -617,11 +471,6 @@ public class CustomJMeterEngine extends StandardJMeterEngine
     public void putVariables(JMeterVariables variables) 
     {
         threadVars.putAll(variables);
-    }
-    
-    private static void setLastSampleOk(JMeterVariables variables, boolean value) 
-    {
-        variables.put(LAST_SAMPLE_OK, Boolean.toString(value));
     }
     
     private class IterationListener implements LoopIterationListener 
@@ -667,101 +516,5 @@ public class CustomJMeterEngine extends StandardJMeterEngine
         result.setGroupThreads(nbActiveThreadsInThreadGroup);
         result.setAllThreads(nbTotalActiveThreads);
         result.setThreadName(""); // no thread name
-    }
-    
-    private static void checkAssertions(List<? extends Assertion> assertions, SampleResult parent, JMeterContext threadContext) 
-    {
-        for (Assertion assertion : assertions) 
-        {
-            TestBeanHelper.prepare((TestElement) assertion);
-            if (assertion instanceof AbstractScopedAssertion) 
-            {
-                AbstractScopedAssertion scopedAssertion = (AbstractScopedAssertion) assertion;
-                String scope = scopedAssertion.fetchScope();
-                if (scopedAssertion.isScopeParent(scope)
-                    || scopedAssertion.isScopeAll(scope)
-                    || scopedAssertion.isScopeVariable(scope)) 
-                {
-                    processAssertion(parent, assertion);
-                }
-                if (scopedAssertion.isScopeChildren(scope)
-                    || scopedAssertion.isScopeAll(scope)) 
-                {
-                    recurseAssertionChecks(parent, assertion, 3);
-                }
-            } else 
-            {
-                processAssertion(parent, assertion);
-            }
-        }
-        setLastSampleOk(threadContext.getVariables(), parent.isSuccessful());
-    }
-
-    private static void recurseAssertionChecks(SampleResult parent, Assertion assertion, int level) 
-    {
-        if (level < 0) 
-        {
-            return;
-        }
-        SampleResult[] children = parent.getSubResults();
-        boolean childError = false;
-        for (SampleResult childSampleResult : children) 
-        {
-            processAssertion(childSampleResult, assertion);
-            recurseAssertionChecks(childSampleResult, assertion, level - 1);
-            if (!childSampleResult.isSuccessful()) 
-            {
-                childError = true;
-            }
-        }
-        // If parent is OK, but child failed, add a message and flag the parent as failed
-        if (childError && parent.isSuccessful()) 
-        {
-            AssertionResult assertionResult = new AssertionResult(((AbstractTestElement) assertion).getName());
-            assertionResult.setResultForFailure("One or more sub-samples failed");
-            parent.addAssertionResult(assertionResult);
-            parent.setSuccessful(false);
-        }
-    }
-
-    private static void processAssertion(SampleResult result, Assertion assertion) 
-    {
-        AssertionResult assertionResult = null;
-        try 
-        {
-            assertionResult = assertion.getResult(result);
-        } 
-        catch (AssertionError e) 
-        {
-            EventLogger.DEFAULT.warn("Error processing Assertion.", e.getMessage());
-            assertionResult = new AssertionResult("Assertion failed!");
-            assertionResult.setFailure(true);
-            assertionResult.setFailureMessage(e.toString());
-        } 
-        catch (JMeterError e) 
-        {
-            EventLogger.DEFAULT.warn("Error processing Assertion.", e.getMessage());
-            assertionResult = new AssertionResult("Assertion failed!");
-            assertionResult.setError(true);
-            assertionResult.setFailureMessage(e.toString());
-        } 
-        catch (Exception e) 
-        {
-            EventLogger.DEFAULT.warn("Exception processing Assertion.", e.getMessage());
-            assertionResult = new AssertionResult("Assertion failed!");
-            assertionResult.setError(true);
-            assertionResult.setFailureMessage(e.toString());
-        }
-        finally
-        {
-            if (assertionResult != null &&
-                assertionResult.isFailure() ||
-                assertionResult.isError())
-            {
-                EventLogger.DEFAULT.warn("Assertion was found.", assertionResult.getFailureMessage());
-            }
-        }
-        result.setSuccessful(result.isSuccessful() && !(assertionResult.isError() || assertionResult.isFailure()));
-        result.addAssertionResult(assertionResult);
     }
 }
