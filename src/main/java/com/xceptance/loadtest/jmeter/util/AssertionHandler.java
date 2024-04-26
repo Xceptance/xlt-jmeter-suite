@@ -1,7 +1,6 @@
 package com.xceptance.loadtest.jmeter.util;
 
-import java.util.List;
-
+import com.xceptance.loadtest.api.events.EventLogger;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.jmeter.assertions.Assertion;
 import org.apache.jmeter.assertions.AssertionResult;
@@ -16,7 +15,7 @@ import org.apache.jmeter.threads.JMeterContext.TestLogicalAction;
 import org.apache.jorphan.util.JMeterError;
 import org.junit.Assert;
 
-import com.xceptance.loadtest.api.events.EventLogger;
+import java.util.List;
 
 public class AssertionHandler
 {
@@ -125,27 +124,13 @@ public class AssertionHandler
             assertionResult = assertion.getResult(result);
             checkAssertionStatus(result, null);
         } 
-        catch (AssertionError e) 
+        catch (AssertionError | JMeterError | Exception e)
         {
             EventLogger.DEFAULT.warn("Error processing Assertion.", e.getMessage());
             assertionResult = new AssertionResult("Assertion failed!");
             assertionResult.setFailure(true);
             assertionResult.setFailureMessage(e.toString());
         } 
-        catch (JMeterError e) 
-        {
-            EventLogger.DEFAULT.warn("Error processing Assertion.", e.getMessage());
-            assertionResult = new AssertionResult("Assertion failed!");
-            assertionResult.setError(true);
-            assertionResult.setFailureMessage(e.toString());
-        } 
-        catch (Exception e) 
-        {
-            EventLogger.DEFAULT.warn("Exception processing Assertion.", e.getMessage());
-            assertionResult = new AssertionResult("Assertion failed!");
-            assertionResult.setError(true);
-            assertionResult.setFailureMessage(e.toString());
-        }
         finally
         {
             if (shutdown)
