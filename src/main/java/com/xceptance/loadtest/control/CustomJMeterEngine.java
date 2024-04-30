@@ -4,6 +4,7 @@ import com.xceptance.loadtest.data.util.Actions;
 import com.xceptance.loadtest.jmeter.util.AssertionHandler;
 import com.xceptance.loadtest.jmeter.util.HttpRequestHandler;
 import com.xceptance.loadtest.jmeter.util.XLTJMeterUtils;
+import com.xceptance.xlt.api.engine.Session;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.jmeter.control.Controller;
 import org.apache.jmeter.control.LoopController;
@@ -13,14 +14,15 @@ import org.apache.jmeter.engine.StandardJMeterEngine;
 import org.apache.jmeter.engine.TurnElementsOn;
 import org.apache.jmeter.engine.event.LoopIterationEvent;
 import org.apache.jmeter.engine.event.LoopIterationListener;
+import org.apache.jmeter.protocol.http.sampler.HTTPSamplerProxy;
 import org.apache.jmeter.samplers.SampleEvent;
 import org.apache.jmeter.samplers.SampleResult;
 import org.apache.jmeter.samplers.Sampler;
 import org.apache.jmeter.testelement.TestElement;
 import org.apache.jmeter.testelement.TestIterationListener;
 import org.apache.jmeter.testelement.TestStateListener;
+import org.apache.jmeter.threads.ThreadGroup;
 import org.apache.jmeter.threads.*;
-import org.apache.jmeter.threads.JMeterContext.TestLogicalAction;
 import org.apache.jmeter.util.JMeterUtils;
 import org.apache.jorphan.collections.HashTree;
 import org.apache.jorphan.collections.ListedHashTree;
@@ -32,11 +34,19 @@ import org.junit.Assert;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
 
 public class CustomJMeterEngine extends StandardJMeterEngine
 {
+    /* If the setting below is set to <true> the code tries to inherit the action's name from the request name. If there is
+     * no request name or the setting is <false> the closest TransactionController's name will be used, if available.
+     * If there is no TransactionController the closest ThreadGroup's name is used. If a transaction controller or
+     * thread group exists but has no name, an anonymous name is given, like "UnnamedThreadGroup_#", with # representing
+     *  the current index of the unnamed element).
+     */
+    // maybe we should name it PROCESS_REQUESTS_INDEPENDENTLY
+    private static final boolean USE_REQUEST_NAMING = false;
+
     private boolean running;
     private HashTree test;
     private static final List<TestStateListener> testList = new ArrayList<>();
@@ -57,7 +67,13 @@ public class CustomJMeterEngine extends StandardJMeterEngine
     private static final String VAR_IS_SAME_USER_KEY = "__jmv_SAME_USER";
     private static final String PACKAGE_OBJECT = "JMeterThread.pack"; // $NON-NLS-1$
     private static final String TRUE = Boolean.toString(true); // i.e. "true"
-    
+
+    private static final String UNNAMED_THREAD_GROUP = "UnnamedThreadGroup_";
+
+    private static final String UNNAMED_TRANSACTION_CONTROLLER = "UnnamedTransactionGroup_";
+
+    private static final String UNNAMED_REQUEST = "UnnamedRequest_";
+
     @Override
     public void configure(HashTree testTree)
     {
@@ -69,6 +85,14 @@ public class CustomJMeterEngine extends StandardJMeterEngine
     
     public void setEngine(CustomJMeterEngine engine) {
         this.engine = engine;
+    }
+
+    private void printDbgMsg(String text)
+    {
+        if(Session.getCurrent().isLoadTest() == false)
+        {
+            System.out.println(text);
+        }
     }
     
     @Override
@@ -123,144 +147,197 @@ public class CustomJMeterEngine extends StandardJMeterEngine
         test.traverse(postSearcher);
 
         TestCompiler.initialize();
-        // for each thread group, generate threads
-        // hand each thread the sampler controller
-        // and the listeners, and the timer
-        
-        Iterator<AbstractThreadGroup> iter = searcher.getSearchResults().iterator();
+
+        // Iterator<AbstractThreadGroup> iter = searcher.getSearchResults().iterator();
         JMeterContextService.clearTotalThreads();
         
         Collection<AbstractThreadGroup> searchResults = searcher.getSearchResults();
         
         Assert.assertFalse("No usable requests in xml file found.", searchResults.isEmpty());
 
-        // The first items in the tree represent the thread groups. There can be multiple thread groups in a jmx file,
-        // so we have to iterate over all of them
-        searchResults.forEach(control ->
-                              {
-                                  mainController = control;
+        JMeterContext context = JMeterContextService.getContext();
 
-                                  JMeterContext context = JMeterContextService.getContext();
-                                  initRun(context);
+        // Counter for unnamed ThreadGroups
+        int unknownThreadGroupCounter = 0;
 
-                                  // main hashtree
-                                  AbstractThreadGroup group = iter.next();
-                                  ListedHashTree groupTree = (ListedHashTree) searcher.getSubTree(group);
-                                  JMeterContextService.getContext()
-                                                      .setSamplingStarted(true);
+        // The first items in the test plan do always represent the thread groups. There can be multiple thread groups
+        // in a test plan, so we have to iterate over all of them
+        for(AbstractThreadGroup currentThreadGroup : searchResults)
+        {
+            mainController = currentThreadGroup;
+            String currentThreadGroupName = currentThreadGroup.getName();
+            if(StringUtils.isBlank(currentThreadGroupName))
+            {
+                currentThreadGroupName = String.format(UNNAMED_THREAD_GROUP + "%d", ++unknownThreadGroupCounter);
+            }
+            initRun(context);
+            processThreadGroup(context, currentThreadGroupName);
+        }
 
-                                  // init the assertion hanlding
-                                  assertionHandler = new AssertionHandler(group);
+        JMeterContextService.endTest();
+    }
 
-                                  // get the first item
-                                  sam = mainController.next();
-                                  index = 0;
+    private void processThreadGroup(JMeterContext context, String threadGroupName)
+    {
+        printDbgMsg("Entering ThreadGroup:" + threadGroupName);
 
-                                  // Make sure there is something to run. Especially important if various thread groups
-                                  // are part of the test
-                                  if(sam != null)
-                                  {
-                                      running = true;
-                                  }
+        // AbstractThreadGroup group = iter.next();
+        //ListedHashTree groupTree = (ListedHashTree) searcher.getSubTree(mainController);
+        JMeterContextService.getContext().setSamplingStarted(true);
 
-                                  while(running)
-                                  {
-                                      // In case the user has selected "Generate parent sample" on a Transaction Controller we have to process
-                                      // the sub samples instead of the actual samplers which usually follow
-                                      if(sam instanceof TransactionSampler)
-                                      {
-                                          sam = ((TransactionSampler) sam).getSubSampler();
-                                      }
+        // init the assertion handling
+        assertionHandler = new AssertionHandler((ThreadGroup) mainController);
 
-                                      name = getParentController(groupTree, index);
-                                      index++;
+        // Get the first item in the thread group
+        sam = mainController.next();
 
-                                      try
-                                      {
-                                          Actions.run(name, t ->
-                                          {
-                                              while(running && sam != null)
-                                              {
-                                                  // if null the variables are not used in the context (TransactionController : notifyListeners())
-                                                  context.setThreadGroup((AbstractThreadGroup) mainController);
+        // Make sure there is something to run. Especially important if various thread groups
+        // are part of the test
+        if(sam == null)
+        {
+            return;
+        }
 
-                                                  processSampler(sam, null, context);
-                                                  context.cleanAfterSample();
+        index = 0;
+        int unnamedRequestCounter = 0;
+        int unnamedTransactionControllerCounter = 0;
+        running = true;
 
-                                                  boolean lastSampleOk = TRUE.equals(context.getVariables()
-                                                                                            .get(XLTJMeterUtils.LAST_SAMPLE_OK));
-                                                  // restart of the next loop
-                                                  // - was requested through threadContext
-                                                  // - or the last sample failed AND the onErrorStartNextLoop option is enabled
-                                                  if(context.getTestLogicalAction() != TestLogicalAction.CONTINUE ||
-                                                     !lastSampleOk)
-                                                  {
-                                                      context.setTestLogicalAction(TestLogicalAction.CONTINUE);
-                                                  }
+        while(running)
+        {
+            // In case the user has selected "Generate parent sample" on a Transaction Controller we have to process
+            // the sub samples instead of the actual samplers which usually follow.
+            boolean isTransactionSampler = false;
+            String transactionControllerName = "";
+            if(sam instanceof TransactionSampler)
+            {
+                isTransactionSampler = true;
+                // We have to save the controller's name at the beginning before switching to sub samplers
+                transactionControllerName = sam.getName();
+                sam = ((TransactionSampler) sam).getSubSampler();
+            }
 
-                                                  sam = mainController.next();
+            // First check if the action name is derived from the request name. If requests have no name a default name
+            // is used
+            if(USE_REQUEST_NAMING)
+            {
+                String requestName = "";
+                if(sam instanceof HTTPSamplerProxy)
+                {
+                    requestName = sam.getName();
+                    if(StringUtils.isBlank(requestName))
+                    {
+                        requestName = String.format(UNNAMED_REQUEST + "%d", ++unnamedRequestCounter);
+                    }
+                }
+                name = requestName;
+            }
+            else
+            {
+                // If no request naming is used, check if there is an active transaction controller where we need to
+                // process the children
+                if(isTransactionSampler)
+                {
+                    if(StringUtils.isBlank(transactionControllerName))
+                    {
+                        transactionControllerName = String.format(UNNAMED_TRANSACTION_CONTROLLER + "%d",
+                                                                  ++unnamedTransactionControllerCounter);
+                    }
+                }
+                // Check if we got a name.
+                if(StringUtils.isNotBlank(transactionControllerName))
+                {
+                    name = transactionControllerName;
+                }
+                else
+                {
+                    // Fallback: there is ALWAYS a thread group with a name (we gave a default one in the caller method
+                    // in case it was empty)
+                    name = threadGroupName;
+                }
+            }
 
-                                                  // get the first parent controller node, for naming and action bundling
-                                                  if(sam != null && !mainController.isDone())
-                                                  {
-                                                      // If JMeter is processing TransactionControllers with "Generate parent sample" we
-                                                      // work on the underlying sub samples of the transaction sampler
-                                                      if(sam instanceof TransactionSampler)
-                                                      {
-                                                          // If all requests, or whatever belongs to this transaction, are processed, continue
-                                                          if(((TransactionSampler) sam).isTransactionDone())
-                                                          {
-                                                              // Move to the next TransactionController
-                                                              sam = mainController.next();
+            printDbgMsg("Process:" + name);
+            index++;
 
-                                                              // If there are no further TransactionControllers we are done
-                                                              if(sam == null)
-                                                              {
-                                                                  running = false;
-                                                              }
-                                                              break;
-                                                          }
-                                                          else
-                                                          {
-                                                              // Default: The transaction (for example, Visit, has more requests to process)
-                                                              sam = ((TransactionSampler) sam).getSubSampler();
-                                                          }
-                                                      }
+            try
+            {
+                Actions.run(name, t ->
+                {
+                    while(running && sam != null)
+                    {
+                        // if null the variables are not used in the context (TransactionController : notifyListeners())
+                        context.setThreadGroup((AbstractThreadGroup) mainController);
 
-                                                      String newName = getParentController(groupTree, index);
+                        processSampler(sam, null, context);
+                        context.cleanAfterSample();
 
-                                                      // TODO adjust naming and check ?
-                                                      if(!StringUtils.equals(name, newName))
-                                                      {
-                                                          System.out.println(newName);
-                                                          // new action started
-                                                          break;
-                                                      }
-                                                  }
+                        boolean lastSampleOk = TRUE.equals(context.getVariables()
+                                                                  .get(XLTJMeterUtils.LAST_SAMPLE_OK));
+                        // restart of the next loop
+                        // - was requested through threadContext
+                        // - or the last sample failed AND the onErrorStartNextLoop option is enabled
+                        if(context.getTestLogicalAction() != JMeterContext.TestLogicalAction.CONTINUE || !lastSampleOk)
+                        {
+                            context.setTestLogicalAction(JMeterContext.TestLogicalAction.CONTINUE);
+                        }
 
-                                                  // It would be possible to add finally for Thread Loop here
-                                                  if(mainController.isDone() || sam == null)
-                                                  {
-                                                      running = false;
-                                                  }
-                                              }
-                                          });
-                                      }
-                                      catch(Throwable e)
-                                      {
-                                          if(e instanceof AssertionError)
-                                          {
-                                              AssertionError ae = new AssertionError(e.getMessage());
-                                              ae.setStackTrace(e.getStackTrace());
-                                              throw ae;
-                                          }
+                        sam = mainController.next();
 
-                                          // TODO Auto-generated catch block
-                                          e.printStackTrace();
-                                      }
-                                  }
-                                  JMeterContextService.endTest();
-                              });
+                        // get the first parent controller node, for naming and action bundling
+                        if(sam != null && !mainController.isDone())
+                        {
+                            // If JMeter is processing TransactionControllers with "Generate parent sample" we
+                            // work on the underlying sub samples of the transaction sampler
+                            if(sam instanceof TransactionSampler)
+                            {
+                                // If all requests, or whatever belongs to this transaction, are processed, continue
+                                if(((TransactionSampler) sam).isTransactionDone())
+                                {
+                                    // Move to the next TransactionController
+                                    sam = mainController.next();
+
+                                    // If there are no further TransactionControllers we are done
+                                    if(sam == null)
+                                    {
+                                        running = false;
+                                    }
+                                    break;
+                                }
+                                else
+                                {
+                                    // Default: The transaction (for example, Visit, has more requests to process)
+                                    sam = ((TransactionSampler) sam).getSubSampler();
+                                }
+                            }
+
+                            if(USE_REQUEST_NAMING)
+                            {
+                                break;
+                            }
+                        }
+
+                        // It would be possible to add finally for Thread Loop here
+                        if(mainController.isDone() || sam == null)
+                        {
+                            running = false;
+                        }
+                    }
+                });
+            }
+            catch(Throwable e)
+            {
+                if(e instanceof AssertionError)
+                {
+                    AssertionError ae = new AssertionError(e.getMessage());
+                    ae.setStackTrace(e.getStackTrace());
+                    throw ae;
+                }
+
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+        }
     }
     
     // TODO add tree location to every node before action loop?
