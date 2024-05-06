@@ -1,8 +1,8 @@
 package com.xceptance.loadtest.test;
 
-public class ThreadGroups extends AbstractComponentTest
+public class MultipleThreadGroups extends AbstractComponentTest
 {
-    public ThreadGroups()
+    public MultipleThreadGroups()
     {
         jmxSource = "/tests/MultipleThreadGroups.jmx";
     }
