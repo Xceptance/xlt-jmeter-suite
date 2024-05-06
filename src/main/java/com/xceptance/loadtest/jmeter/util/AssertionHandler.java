@@ -1,7 +1,6 @@
 package com.xceptance.loadtest.jmeter.util;
 
-import java.util.List;
-
+import com.xceptance.loadtest.api.events.EventLogger;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.jmeter.assertions.Assertion;
 import org.apache.jmeter.assertions.AssertionResult;
@@ -16,7 +15,7 @@ import org.apache.jmeter.threads.JMeterContext.TestLogicalAction;
 import org.apache.jorphan.util.JMeterError;
 import org.junit.Assert;
 
-import com.xceptance.loadtest.api.events.EventLogger;
+import java.util.List;
 
 public class AssertionHandler
 {

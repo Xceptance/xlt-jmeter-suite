@@ -1,36 +1,29 @@
 package com.xceptance.loadtest.control;
 
-import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.List;
-
+import com.xceptance.loadtest.data.util.Actions;
+import com.xceptance.loadtest.jmeter.util.AssertionHandler;
+import com.xceptance.loadtest.jmeter.util.HttpRequestHandler;
+import com.xceptance.loadtest.jmeter.util.XLTJMeterUtils;
+import com.xceptance.xlt.api.engine.Session;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.jmeter.control.Controller;
 import org.apache.jmeter.control.LoopController;
+import org.apache.jmeter.control.TransactionController;
 import org.apache.jmeter.control.TransactionSampler;
 import org.apache.jmeter.engine.PreCompiler;
 import org.apache.jmeter.engine.StandardJMeterEngine;
 import org.apache.jmeter.engine.TurnElementsOn;
 import org.apache.jmeter.engine.event.LoopIterationEvent;
 import org.apache.jmeter.engine.event.LoopIterationListener;
+import org.apache.jmeter.protocol.http.sampler.HTTPSamplerProxy;
 import org.apache.jmeter.samplers.SampleEvent;
 import org.apache.jmeter.samplers.SampleResult;
 import org.apache.jmeter.samplers.Sampler;
 import org.apache.jmeter.testelement.TestElement;
 import org.apache.jmeter.testelement.TestIterationListener;
 import org.apache.jmeter.testelement.TestStateListener;
-import org.apache.jmeter.threads.AbstractThreadGroup;
-import org.apache.jmeter.threads.FindTestElementsUpToRootTraverser;
-import org.apache.jmeter.threads.JMeterContext;
-import org.apache.jmeter.threads.JMeterContext.TestLogicalAction;
-import org.apache.jmeter.threads.JMeterContextService;
-import org.apache.jmeter.threads.JMeterVariables;
-import org.apache.jmeter.threads.PostThreadGroup;
-import org.apache.jmeter.threads.SamplePackage;
-import org.apache.jmeter.threads.SetupThreadGroup;
-import org.apache.jmeter.threads.TestCompiler;
+import org.apache.jmeter.threads.ThreadGroup;
+import org.apache.jmeter.threads.*;
 import org.apache.jmeter.util.JMeterUtils;
 import org.apache.jorphan.collections.HashTree;
 import org.apache.jorphan.collections.ListedHashTree;
@@ -39,13 +32,22 @@ import org.apache.jorphan.util.JMeterStopTestException;
 import org.apiguardian.api.API;
 import org.junit.Assert;
 
-import com.xceptance.loadtest.data.util.Actions;
-import com.xceptance.loadtest.jmeter.util.AssertionHandler;
-import com.xceptance.loadtest.jmeter.util.HttpRequestHandler;
-import com.xceptance.loadtest.jmeter.util.XLTJMeterUtils;
+import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 
 public class CustomJMeterEngine extends StandardJMeterEngine
 {
+    /* If the setting below is set to <true> the code tries to inherit the action's name from the request name. If there is
+     * no request name or the setting is <false> the closest TransactionController's name will be used, if available.
+     * If there is no TransactionController the closest ThreadGroup's name is used. If a transaction controller or
+     * thread group exists but has no name, an anonymous name is given, like "UnnamedThreadGroup_#", with # representing
+     *  the current index of the unnamed element).
+     */
+    // maybe we should name it PROCESS_REQUESTS_INDEPENDENTLY
+    private static final boolean USE_REQUEST_NAMING = false;
+
     private boolean running;
     private HashTree test;
     private static final List<TestStateListener> testList = new ArrayList<>();
@@ -66,7 +68,13 @@ public class CustomJMeterEngine extends StandardJMeterEngine
     private static final String VAR_IS_SAME_USER_KEY = "__jmv_SAME_USER";
     private static final String PACKAGE_OBJECT = "JMeterThread.pack"; // $NON-NLS-1$
     private static final String TRUE = Boolean.toString(true); // i.e. "true"
-    
+
+    private static final String UNNAMED_THREAD_GROUP = "UnnamedThreadGroup_";
+
+    private static final String UNNAMED_TRANSACTION_CONTROLLER = "UnnamedTransactionGroup_";
+
+    private static final String UNNAMED_REQUEST = "UnnamedRequest_";
+
     @Override
     public void configure(HashTree testTree)
     {
@@ -74,46 +82,54 @@ public class CustomJMeterEngine extends StandardJMeterEngine
         test = testTree;
         compiler = new TestCompiler(testTree);
         threadVars = new JMeterVariables();
-    }       
-    
+    }
+
     public void setEngine(CustomJMeterEngine engine) {
         this.engine = engine;
     }
-    
+
+    private void printDbgMsg(String text)
+    {
+        if(Session.getCurrent().isLoadTest() == false)
+        {
+            System.err.println(text);
+        }
+    }
+
     @Override
     public void run()
     {
         running = true;
-        
+
         /*
          * Ensure that the sample variables are correctly initialised for each run.
          */
         SampleEvent.initSampleVariables();
         JMeterContextService.startTest();
-        
+
         // needed for engine
         SearchByClass<TestIterationListener> threadListenerSearcher = new SearchByClass<>(TestIterationListener.class);
         testIterationStartListeners = threadListenerSearcher.getSearchResults();
-        
-        try 
+
+        try
         {
             PreCompiler compiler = new PreCompiler();
             test.traverse(compiler);
         }
-        catch 
-        (RuntimeException e) 
+        catch
+        (RuntimeException e)
         {
             JMeterUtils.reportErrorToUser("Error occurred compiling the tree: - see log file", e);
             return; // no point continuing
         }
-        
+
         /*
          * Notification of test listeners needs to happen after function
          * replacement, but before setting RunningVersion to true.
          */
         SearchByClass<TestStateListener> testListeners = new SearchByClass<>(TestStateListener.class);
         test.traverse(testListeners);
-        
+
         // Merge in any additional test listeners
         // currently only used by the function parser
         testListeners.getSearchResults().addAll(testList);
@@ -121,7 +137,7 @@ public class CustomJMeterEngine extends StandardJMeterEngine
 
         test.traverse(new TurnElementsOn());
 
-//        List<?> testLevelElements = new ArrayList<>(test.list(test.getArray()[0]));
+        //        List<?> testLevelElements = new ArrayList<>(test.list(test.getArray()[0]));
 
         SearchByClass<SetupThreadGroup> setupSearcher = new SearchByClass<>(SetupThreadGroup.class);
         SearchByClass<AbstractThreadGroup> searcher = new SearchByClass<>(AbstractThreadGroup.class);
@@ -132,70 +148,194 @@ public class CustomJMeterEngine extends StandardJMeterEngine
         test.traverse(postSearcher);
 
         TestCompiler.initialize();
-        // for each thread group, generate threads
-        // hand each thread the sampler controller
-        // and the listeners, and the timer
-        
-        Iterator<AbstractThreadGroup> iter = searcher.getSearchResults().iterator();
+
+        // Iterator<AbstractThreadGroup> iter = searcher.getSearchResults().iterator();
         JMeterContextService.clearTotalThreads();
-        
+
         Collection<AbstractThreadGroup> searchResults = searcher.getSearchResults();
-        
+
         Assert.assertFalse("No usable requests in xml file found.", searchResults.isEmpty());
-        mainController = (Controller) searchResults.toArray()[0];
-        
+
         JMeterContext context = JMeterContextService.getContext();
-        initRun(context);
-        
-        // main hashtree
-        AbstractThreadGroup group = iter.next();
-        ListedHashTree groupTree = (ListedHashTree) searcher.getSubTree(group);
+
+        // Counter for unnamed ThreadGroups
+        int unknownThreadGroupCounter = 0;
+
+        // The first items in the test plan do always represent the thread groups. There can be multiple thread groups
+        // in a test plan, so we have to iterate over all of them
+        for(AbstractThreadGroup currentThreadGroup : searchResults)
+        {
+            mainController = currentThreadGroup;
+            String currentThreadGroupName = currentThreadGroup.getName();
+            if(StringUtils.isBlank(currentThreadGroupName))
+            {
+                currentThreadGroupName = String.format(UNNAMED_THREAD_GROUP + "%d", ++unknownThreadGroupCounter);
+            }
+
+            ListedHashTree groupTree = (ListedHashTree) searcher.getSubTree(currentThreadGroup);
+
+            initRun(context);
+            processThreadGroup(context, currentThreadGroupName, groupTree);
+        }
+
+        JMeterContextService.endTest();
+    }
+
+    private void processThreadGroup(JMeterContext context, String threadGroupName, ListedHashTree threadGroupHashtree)
+    {
+        printDbgMsg("Entering ThreadGroup:" + threadGroupName);
+
+        // At the beginning we have to make sure *all* transaction controllers generate a parent sample, in order to
+        // work with the action naming we are going to use
+        SearchByClass<TransactionController> transactionControllerSearch = new SearchByClass<>(TransactionController.class);
+        threadGroupHashtree.traverse(transactionControllerSearch);
+        Collection<TransactionController> allTransactionControllers = transactionControllerSearch.getSearchResults();
+        for(TransactionController tC : allTransactionControllers)
+        {
+            tC.setGenerateParentSample(true);
+        }
+
         JMeterContextService.getContext().setSamplingStarted(true);
 
-        // init the assertion hanlding
-        assertionHandler = new AssertionHandler(group);
-        
-        // get the first item
+        // init the assertion handling
+        assertionHandler = new AssertionHandler((ThreadGroup) mainController);
+
+        // Get the first item in the thread group
         sam = mainController.next();
+
+        // Make sure there is something to run. Especially important if various thread groups
+        // are part of the test
+        if(sam == null)
+        {
+            return;
+        }
+
         index = 0;
-        
-        while (running) 
+        int unnamedRequestCounter = 0;
+        int unnamedTransactionControllerCounter = 0;
+        running = true;
+
+        while(running)
         {
             // In case the user has selected "Generate parent sample" on a Transaction Controller we have to process
-            // the sub samples instead of the actual samplers which usually follow
-            if(sam instanceof TransactionSampler)
+            // the sub samples instead of the actual samplers which usually follow.
+            boolean isTransactionSampler = false;
+            String transactionControllerName = "";
+
+            while(sam instanceof TransactionSampler)
             {
+                // ((TransactionController) sam).setGenerateParentSample(true);
+                isTransactionSampler = true;
+                // We have to save the controller's name at the beginning before switching to sub samplers
+                transactionControllerName = sam.getName();
                 sam = ((TransactionSampler) sam).getSubSampler();
             }
 
-            name = getParentController(groupTree, index);
+            // Skip in case sam is empty - but we might have some more things to process
+            if(sam == null)
+            {
+                sam = mainController.next();
+                if(sam != null)
+                {
+                    continue;
+                }
+
+                running = false;
+                continue;
+            }
+
+
+            // First check if the action name is derived from the request name. If requests have no name a default name
+            // is used
+            if(USE_REQUEST_NAMING)
+            {
+                String requestName = "";
+                if(sam instanceof HTTPSamplerProxy)
+                {
+                    requestName = sam.getName();
+                    if(StringUtils.isBlank(requestName))
+                    {
+                        requestName = String.format(UNNAMED_REQUEST + "%d", ++unnamedRequestCounter);
+                    }
+                    name = requestName;
+                }
+                else
+                {
+                    // Fallback, in case we want request naming but do not have a request to process
+                    if(isTransactionSampler)
+                    {
+                        if(StringUtils.isBlank(transactionControllerName))
+                        {
+                            transactionControllerName = String.format(UNNAMED_TRANSACTION_CONTROLLER + "%d",
+                                                                      ++unnamedTransactionControllerCounter);
+                        }
+                        name = transactionControllerName;
+                    }
+                    else
+                    {
+                        // Fallback: there is ALWAYS a thread group with a name (we gave a default one in the caller method
+                        // in case it was empty)
+                        name = threadGroupName;
+                    }
+                }
+            }
+            else
+            {
+                // If no request naming is used, check if there is an active transaction controller where we need to
+                // process the children
+                if(isTransactionSampler)
+                {
+                    if(StringUtils.isBlank(transactionControllerName))
+                    {
+                        transactionControllerName = String.format(UNNAMED_TRANSACTION_CONTROLLER + "%d",
+                                                                  ++unnamedTransactionControllerCounter);
+                    }
+                    // Either the TC has a name or we assigned one
+                    name = transactionControllerName;
+                }
+                else
+                {
+                    // Fallback: there is ALWAYS a thread group with a name (we gave a default one in the caller method
+                    // in case it was empty)
+                    name = threadGroupName;
+                }
+            }
+
+            printDbgMsg("Process:" + name);
             index++;
-            
+
             try
             {
                 Actions.run(name, t ->
                 {
-                    while (running && sam != null) 
+                    while(running && sam != null)
                     {
                         // if null the variables are not used in the context (TransactionController : notifyListeners())
                         context.setThreadGroup((AbstractThreadGroup) mainController);
-                        
+
                         processSampler(sam, null, context);
                         context.cleanAfterSample();
 
-                        boolean lastSampleOk = TRUE.equals(context.getVariables().get(XLTJMeterUtils.LAST_SAMPLE_OK));
+                        boolean lastSampleOk = TRUE.equals(context.getVariables()
+                                                                  .get(XLTJMeterUtils.LAST_SAMPLE_OK));
                         // restart of the next loop
                         // - was requested through threadContext
                         // - or the last sample failed AND the onErrorStartNextLoop option is enabled
-                        if (context.getTestLogicalAction() != TestLogicalAction.CONTINUE || !lastSampleOk)
+                        if(context.getTestLogicalAction() != JMeterContext.TestLogicalAction.CONTINUE || !lastSampleOk)
                         {
-                            context.setTestLogicalAction(TestLogicalAction.CONTINUE);
+                            context.setTestLogicalAction(JMeterContext.TestLogicalAction.CONTINUE);
                         }
-                        
+
                         sam = mainController.next();
-                        
+
+                        // Check if we are still below the current parent for naming
+                        // (transaction controller or thread group)
+                        // getParent(threadGroupHashtree, sam);
+
+                        // isEnabled Sampler check
+
                         // get the first parent controller node, for naming and action bundling
-                        if (sam != null && !mainController.isDone())
+                        if(sam != null && !mainController.isDone())
                         {
                             // If JMeter is processing TransactionControllers with "Generate parent sample" we
                             // work on the underlying sub samples of the transaction sampler
@@ -212,35 +352,39 @@ public class CustomJMeterEngine extends StandardJMeterEngine
                                     {
                                         running = false;
                                     }
+
+                                    if(name.equals(sam.getName()))
+                                    {
+                                        continue;
+                                    }
+
                                     break;
                                 }
                                 else
                                 {
                                     // Default: The transaction (for example, Visit, has more requests to process)
-                                    sam = ((TransactionSampler) sam).getSubSampler();
+                                    // sam = ((TransactionSampler) sam).getSubSampler();
+
+                                    // a new transaction controller means we have to switch to a new action
+                                    break;
                                 }
                             }
 
-                            String newName = getParentController(groupTree, index);
-                            
-                            // TODO adjust naming and check ?
-                            if (!StringUtils.equals(name, newName))
+                            if(USE_REQUEST_NAMING)
                             {
-                                System.out.println(newName);
-                                // new action started
                                 break;
                             }
                         }
 
                         // It would be possible to add finally for Thread Loop here
-                        if (mainController.isDone() || sam == null)
+                        if(mainController.isDone() || sam == null)
                         {
                             running = false;
                         }
                     }
                 });
-            } 
-            catch (Throwable e)
+            }
+            catch(Throwable e)
             {
                 if(e instanceof AssertionError)
                 {
@@ -253,24 +397,9 @@ public class CustomJMeterEngine extends StandardJMeterEngine
                 e.printStackTrace();
             }
         }
-        JMeterContextService.endTest();
     }
-    
-    // TODO add tree location to every node before action loop?
-    private String getParentController(ListedHashTree groupTree, int index)
-    {
-        // get the first parent controller node, for naming and action bundling
-        pathToRootTraverser = new FindTestElementsUpToRootTraverser(sam);
-        groupTree.traverse(pathToRootTraverser);
-        controllersToRoot = pathToRootTraverser.getControllersToRoot();
-        
-        Assert.assertFalse("No controller found for current element.", controllersToRoot.isEmpty());
-        
-        controller = controllersToRoot.get(0);
-        return StringUtils.isNotBlank(controller.getName()) ? controller.getName() : "Action " + index;
-    }
-    
-    private SampleResult processSampler(Sampler current, Sampler parent, JMeterContext threadContext) 
+
+    private SampleResult processSampler(Sampler current, Sampler parent, JMeterContext threadContext)
     {
         SampleResult transactionResult = null;
         // Check if we are running a transaction
@@ -279,32 +408,32 @@ public class CustomJMeterEngine extends StandardJMeterEngine
         SamplePackage transactionPack = null;
         try
         {
-            if (current instanceof TransactionSampler) 
+            if (current instanceof TransactionSampler)
             {
                 transactionSampler = (TransactionSampler) current;
                 transactionPack = compiler.configureTransactionSampler(transactionSampler);
 
                 // Check if the transaction is done
-                if (transactionSampler.isTransactionDone()) 
+                if (transactionSampler.isTransactionDone())
                 {
                     transactionResult = doEndTransactionSampler(transactionSampler,
-                            parent,
-                            transactionPack,
-                            threadContext);
+                                                                parent,
+                                                                transactionPack,
+                                                                threadContext);
                     // Transaction is done, we do not have a sampler to sample
                     current = null;
-                } 
+                }
                 else
                 {
                     Sampler prev = current;
                     // It is the sub sampler of the transaction that will be sampled
                     current = transactionSampler.getSubSampler();
-                    if (current instanceof TransactionSampler) 
+                    if (current instanceof TransactionSampler)
                     {
                         SampleResult res = processSampler(current, prev, threadContext);// recursive call
                         threadContext.setCurrentSampler(prev);
                         current = null;
-                        if (res != null) 
+                        if (res != null)
                         {
                             transactionSampler.addSubSamplerResult(res);
                         }
@@ -313,29 +442,29 @@ public class CustomJMeterEngine extends StandardJMeterEngine
             }
 
             // Check if we have a sampler to sample
-            if (current != null) 
+            if (current != null)
             {
                 executeSamplePackage(current, transactionSampler, transactionPack, threadContext);
             }
 
-        } catch (JMeterStopTestException e) 
-        { 
+        } catch (JMeterStopTestException e)
+        {
             // TODO logging and eventually actions
         }
         if (!running
-                && transactionResult == null
-                && transactionSampler != null
-                && transactionPack != null) {
+            && transactionResult == null
+            && transactionSampler != null
+            && transactionPack != null) {
             transactionResult = doEndTransactionSampler(transactionSampler, parent, transactionPack, threadContext);
         }
 
         return transactionResult;
     }
-    
+
     private void executeSamplePackage(Sampler current,
-            TransactionSampler transactionSampler,
-            SamplePackage transactionPack,
-            JMeterContext threadContext) 
+                                      TransactionSampler transactionSampler,
+                                      SamplePackage transactionPack,
+                                      JMeterContext threadContext)
     {
         threadContext.setCurrentSampler(current);
         // Get the sampler ready to sample
@@ -367,76 +496,76 @@ public class CustomJMeterEngine extends StandardJMeterEngine
 
         // Hack: save the package for any transaction controllers
         threadVars.putObject(PACKAGE_OBJECT, pack);
-        
+
         SampleResult result = null;
-        if (running) 
+        if (running)
         {
             Sampler sampler = pack.getSampler();
             sampler.setThreadContext(JMeterContextService.getContext());
             result =  sampler.sample(null);
-            
+
             //*************************************************************
             // XLT request
             //*************************************************************
             try
             {
                 result = HttpRequestHandler.buildAndExecuteRequest(result, pack, current.getName());
-                
+
                 threadVars.putObject(VAR_IS_SAME_USER_KEY, isSameUserOnNextIteration);
                 threadContext.setVariables(threadVars);
-                
+
                 // set the variables into the engine for mapping
                 putVariables(threadVars);
-            } 
+            }
             catch (Throwable e)
             {
                 e.printStackTrace();
             }
         }
         // If we got any results, then perform processing on the result
-        if (result != null) 
+        if (result != null)
         {
-            if (!result.isIgnore()) 
+            if (!result.isIgnore())
             {
                 int nbActiveThreadsInThreadGroup = 1;
                 int nbTotalActiveThreads = JMeterContextService.getNumberOfThreads();
                 fillThreadInformation(result, nbActiveThreadsInThreadGroup, nbTotalActiveThreads);
                 SampleResult[] subResults = result.getSubResults();
-                if (subResults != null) 
+                if (subResults != null)
                 {
-                    for (SampleResult subResult : subResults) 
+                    for (SampleResult subResult : subResults)
                     {
                         fillThreadInformation(subResult, nbActiveThreadsInThreadGroup, nbTotalActiveThreads);
                     }
                 }
                 threadContext.setPreviousResult(result);
                 XLTJMeterUtils.runPostProcessors(pack.getPostProcessors());
-                
+
                 // check the current assertion status
                 assertionHandler.checkAssertions(pack.getAssertions(), result, threadContext);
-                
+
                 compiler.done(pack);
                 // Add the result as subsample of transaction if we are in a transaction
-                if (transactionSampler != null && !result.isIgnore()) 
+                if (transactionSampler != null && !result.isIgnore())
                 {
                     transactionSampler.addSubSamplerResult(result);
                 }
-            } 
-            else 
+            }
+            else
             {
                 // This call is done by checkAssertions() , as we don't call it
                 // for isIgnore, we explictely call it here
                 XLTJMeterUtils.setLastSampleOk(threadContext.getVariables(), result.isSuccessful());
                 compiler.done(pack);
             }
-        } 
-        else 
+        }
+        else
         {
             compiler.done(pack); // Finish up
         }
     }
-    
-    private IterationListener initRun(JMeterContext threadContext) 
+
+    private IterationListener initRun(JMeterContext threadContext)
     {
         threadVars.putObject(VAR_IS_SAME_USER_KEY, isSameUserOnNextIteration);
         // save all previous found variables (from compiler) into the thread 
@@ -445,10 +574,10 @@ public class CustomJMeterEngine extends StandardJMeterEngine
         threadContext.setThreadNum(1);
         XLTJMeterUtils.setLastSampleOk(threadVars, true);
         threadContext.setEngine(engine);
-        
+
         // variables are set at this point
         test.traverse(compiler);
-        
+
         /*
          * Setting SamplingStarted before the controllers are initialised allows
          * them to access the running values of functions and variables (however
@@ -462,45 +591,45 @@ public class CustomJMeterEngine extends StandardJMeterEngine
 
         return iterationListener;
     }
-    
+
     /**
      * Updates the variables with all entries found in the variables in {@code vars}
      * @param variables {@link JMeterVariables} with the entries to be updated
      */
     @API(status = API.Status.STABLE, since = "5.5")
-    public void putVariables(JMeterVariables variables) 
+    public void putVariables(JMeterVariables variables)
     {
         threadVars.putAll(variables);
     }
-    
-    private class IterationListener implements LoopIterationListener 
+
+    private class IterationListener implements LoopIterationListener
     {
         /**
          * {@inheritDoc}
          */
         @Override
-        public void iterationStart(LoopIterationEvent iterEvent) 
+        public void iterationStart(LoopIterationEvent iterEvent)
         {
             notifyTestListeners();
         }
     }
-    
-    void notifyTestListeners() 
+
+    void notifyTestListeners()
     {
         threadVars.incIteration();
-        for (TestIterationListener listener : testIterationStartListeners) 
+        for (TestIterationListener listener : testIterationStartListeners)
         {
             listener.testIterationStart(new LoopIterationEvent(mainController, threadVars.getIteration()));
-            if (listener instanceof TestElement) 
+            if (listener instanceof TestElement)
             {
                 ((TestElement) listener).recoverRunningVersion();
             }
         }
     }
-    
+
     private SampleResult doEndTransactionSampler(
             TransactionSampler transactionSampler, Sampler parent,
-            SamplePackage transactionPack, JMeterContext threadContext) 
+            SamplePackage transactionPack, JMeterContext threadContext)
     {
         // Get the transaction sample result
         SampleResult transactionResult = transactionSampler.getTransactionResult();
@@ -508,10 +637,10 @@ public class CustomJMeterEngine extends StandardJMeterEngine
         compiler.done(transactionPack);
         return transactionResult;
     }
-    
+
     private void fillThreadInformation(SampleResult result,
-            int nbActiveThreadsInThreadGroup,
-            int nbTotalActiveThreads) 
+                                       int nbActiveThreadsInThreadGroup,
+                                       int nbTotalActiveThreads)
     {
         result.setGroupThreads(nbActiveThreadsInThreadGroup);
         result.setAllThreads(nbTotalActiveThreads);
