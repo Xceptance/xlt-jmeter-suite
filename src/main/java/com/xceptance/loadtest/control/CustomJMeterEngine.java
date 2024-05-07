@@ -352,12 +352,10 @@ public class CustomJMeterEngine extends StandardJMeterEngine
                                     {
                                         running = false;
                                     }
-
-                                    if(name.equals(sam.getName()))
+                                    else if(name.equals(sam.getName()))
                                     {
                                         continue;
                                     }
-
                                     break;
                                 }
                                 else
