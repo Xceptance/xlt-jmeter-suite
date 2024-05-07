@@ -25,6 +25,7 @@ public class AssertionHandler
     private boolean onErrorStartNextLoop;
     
     private boolean shutdown;
+    private boolean logging;
     
     public AssertionHandler(AbstractThreadGroup group)
     {
@@ -33,6 +34,7 @@ public class AssertionHandler
         onErrorStopThread = group.getOnErrorStopThread();
         onErrorStartNextLoop = group.getOnErrorStartNextLoop();
         shutdown = false;
+        logging = true;
     }
     
     public void checkAssertions(List<? extends Assertion> assertions, SampleResult parent, JMeterContext threadContext) 
@@ -65,6 +67,14 @@ public class AssertionHandler
     
     public void checkAssertionStatus(SampleResult result, JMeterContext threadContext)
     {
+        // no log for errors
+        if (onErrorStopThread ||
+            onErrorStopTest ||    
+            onErrorStopTestNow)
+        {
+            logging = false;
+        }
+        
         // Check if thread or test should be stopped
         if (result.isStopThread() || (!result.isSuccessful() && onErrorStopThread)) 
         {
@@ -122,6 +132,7 @@ public class AssertionHandler
         try 
         {
             assertionResult = assertion.getResult(result);
+            // check the overall status
             checkAssertionStatus(result, null);
         } 
         catch (AssertionError | JMeterError | Exception e)
@@ -133,16 +144,19 @@ public class AssertionHandler
         } 
         finally
         {
-            if (shutdown)
-            {
-                // hard stop the test since it is configured to stop on error
-                Assert.fail(StringUtils.isNotEmpty(assertionResult.getFailureMessage()) ? assertionResult.getFailureMessage() : assertionResult.getName());
-            }
             if (assertionResult != null &&
                 assertionResult.isFailure() ||
                 assertionResult.isError())
             {
-                EventLogger.DEFAULT.warn("Assertion was found.", assertionResult.getFailureMessage());
+                if (logging)
+                {
+                    EventLogger.DEFAULT.warn("Assertion was found.", assertionResult.getFailureMessage());
+                }
+                else
+                {
+                    // hard stop the test since it is configured to stop on error
+                    Assert.fail(StringUtils.isNotEmpty(assertionResult.getFailureMessage()) ? assertionResult.getFailureMessage() : assertionResult.getName());
+                }
             }
         }
         result.setSuccessful(result.isSuccessful() && !(assertionResult.isError() || assertionResult.isFailure()));
