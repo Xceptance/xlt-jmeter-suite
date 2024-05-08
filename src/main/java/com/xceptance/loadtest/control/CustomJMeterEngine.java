@@ -75,6 +75,13 @@ public class CustomJMeterEngine extends StandardJMeterEngine
 
     private static final String UNNAMED_REQUEST = "UnnamedRequest_";
 
+
+    // In case the user has selected "Generate parent sample" on a Transaction Controller we have to process
+    // the sub samples instead of the actual samplers which usually follow.
+    boolean isInsideOrDirectTransactionSampler = false;
+
+    String transactionControllerName = "";
+
     @Override
     public void configure(HashTree testTree)
     {
@@ -195,6 +202,38 @@ public class CustomJMeterEngine extends StandardJMeterEngine
             tC.setGenerateParentSample(true);
         }
 
+//        mainController.next();
+//        mainController.next();
+//        mainController.next();
+        /*
+        SearchByClass<GenericController> genericControllerSearchByClass = new SearchByClass<>(GenericController.class);
+        threadGroupHashtree.traverse(genericControllerSearchByClass);
+        Collection<GenericController> allGenericControllers = genericControllerSearchByClass.getSearchResults();
+        List<Controller> subControlList = new ArrayList<>();
+        for(GenericController genericController : allGenericControllers)
+        {
+            System.out.println(genericController);
+            try
+            {
+                // List<Field> allFields = Arrays.asList(GenericController.class.getDeclaredFields());
+                Field subControllersAndSamplers = GenericController.class.getDeclaredField("subControllersAndSamplers");
+                subControllersAndSamplers.setAccessible(true);
+                subControlList = (List<Controller>) subControllersAndSamplers.get(genericController);
+                System.out.println("Children of current controller: " + subControlList);
+                for(TestElement testElement : subControlList)
+                {
+                    Controller a = ((Controller) testElement);
+                    a.next();
+                    // set generate parent stuff
+                }
+            }
+            catch(NoSuchFieldException | IllegalAccessException e)
+            {
+                Assert.fail("Cannot locate field <subControllersAndSamplers> in GenericController class");
+            }
+        }
+        */
+
         JMeterContextService.getContext().setSamplingStarted(true);
 
         // init the assertion handling
@@ -210,28 +249,28 @@ public class CustomJMeterEngine extends StandardJMeterEngine
             return;
         }
 
-        index = 0;
         int unnamedRequestCounter = 0;
         int unnamedTransactionControllerCounter = 0;
+        // Reset of global variables
         running = true;
+        index = 0;
+        isInsideOrDirectTransactionSampler = false;
+        transactionControllerName = "";
 
         while(running)
         {
-            // In case the user has selected "Generate parent sample" on a Transaction Controller we have to process
-            // the sub samples instead of the actual samplers which usually follow.
-            boolean isTransactionSampler = false;
-            String transactionControllerName = "";
-
+            // Check if there are TransactionSamplers
             while(sam instanceof TransactionSampler)
             {
                 // ((TransactionController) sam).setGenerateParentSample(true);
-                isTransactionSampler = true;
+                isInsideOrDirectTransactionSampler = true;
                 // We have to save the controller's name at the beginning before switching to sub samplers
                 transactionControllerName = sam.getName();
                 sam = ((TransactionSampler) sam).getSubSampler();
             }
-
-            // Skip in case sam is empty - but we might have some more things to process
+            // Skip in case sam is empty - but we might
+            // have some more things to process
+            // This is important for finishing a (nested) transaction controller and proceeding to the next
             if(sam == null)
             {
                 sam = mainController.next();
@@ -262,7 +301,7 @@ public class CustomJMeterEngine extends StandardJMeterEngine
                 else
                 {
                     // Fallback, in case we want request naming but do not have a request to process
-                    if(isTransactionSampler)
+                    if(isInsideOrDirectTransactionSampler)
                     {
                         if(StringUtils.isBlank(transactionControllerName))
                         {
@@ -283,7 +322,7 @@ public class CustomJMeterEngine extends StandardJMeterEngine
             {
                 // If no request naming is used, check if there is an active transaction controller where we need to
                 // process the children
-                if(isTransactionSampler)
+                if(isInsideOrDirectTransactionSampler)
                 {
                     if(StringUtils.isBlank(transactionControllerName))
                     {
@@ -328,11 +367,11 @@ public class CustomJMeterEngine extends StandardJMeterEngine
 
                         sam = mainController.next();
 
-                        // Check if we are still below the current parent for naming
-                        // (transaction controller or thread group)
-                        // getParent(threadGroupHashtree, sam);
+                        // Check if we are still below the current parent for naming (transaction controller or thread group)
+                        // If we are below a thread group: the name cannont change because we call it from outside
+                        Controller parentNameOfCurrentSampler = getClosestTransactionOrThreadParentController(threadGroupHashtree, sam);
 
-                        // isEnabled Sampler check
+                        // TODO: check isEnabled (several locations required)
 
                         // get the first parent controller node, for naming and action bundling
                         if(sam != null && !mainController.isDone())
@@ -374,6 +413,36 @@ public class CustomJMeterEngine extends StandardJMeterEngine
                             }
                         }
 
+                        if(parentNameOfCurrentSampler != null)
+                        {
+                            if(parentNameOfCurrentSampler instanceof ThreadGroup)
+                            {
+                                if(parentNameOfCurrentSampler.getName().length() !=0 &&
+                                   parentNameOfCurrentSampler.getName().equals(threadGroupName) == false)
+                                {
+                                    isInsideOrDirectTransactionSampler = true;
+                                    // We must reuse the passed name, in case the thread group is unnamed (and has a fallback name)
+                                    transactionControllerName = threadGroupName;
+                                    break;
+                                }
+                            }
+                            // There is a new parent for the current sampler, so we need to open a new action
+                            else if(parentNameOfCurrentSampler instanceof TransactionController)
+                            {
+                                if(parentNameOfCurrentSampler.getName().equals(name) == false)
+                                {
+                                    isInsideOrDirectTransactionSampler = true;
+                                    transactionControllerName = parentNameOfCurrentSampler.getName();
+                                    break;
+                                }
+                            }
+                            else
+                            {
+                                // No fallback implemented yet
+                                Assert.fail("FAIL!");
+                            }
+                        }
+
                         // It would be possible to add finally for Thread Loop here
                         if(mainController.isDone() || sam == null)
                         {
@@ -395,6 +464,65 @@ public class CustomJMeterEngine extends StandardJMeterEngine
                 e.printStackTrace();
             }
         }
+    }
+
+    private String getTransactionControllerName(TransactionSampler sampler)
+    {
+        try
+        {
+            // Field subControllersAndSamplers = sampler.getClass().getDeclaredField("subControllersAndSamplers");
+            Field transactionController = TransactionSampler.class.getDeclaredField("transactionController");
+            transactionController.setAccessible(true);
+            TransactionController tC = (TransactionController) transactionController.get(sampler);
+            System.out.println(tC);
+            return tC.getName();
+        }
+        catch(Exception e)
+        {
+            // ignore
+        }
+
+        return null;
+    }
+
+    private Controller getClosestParentController(ListedHashTree groupTree, Sampler sampler)
+    {
+        // Retrace the path from the current element to the root item.
+        FindTestElementsUpToRootTraverser path = new FindTestElementsUpToRootTraverser(sampler);
+        groupTree.traverse(path);
+        List<Controller> controllers = path.getControllersToRoot();
+
+        // If there is a path return the closest parent controller
+        if(!controllers.isEmpty())
+        {
+            return controllers.get(0);
+        }
+
+        return null;
+    }
+
+    private Controller getClosestTransactionOrThreadParentController(ListedHashTree groupTree, Sampler sampler)
+    {
+        // Retrace the path from the current element to the root item.
+        FindTestElementsUpToRootTraverser path = new FindTestElementsUpToRootTraverser(sampler);
+        groupTree.traverse(path);
+        List<Controller> controllers = path.getControllersToRoot();
+        List<Controller> limitedList = new ArrayList<>();
+        for(Controller c : controllers)
+        {
+            if(c instanceof TransactionController || c instanceof ThreadGroup)
+            {
+                limitedList.add(c);
+            }
+        }
+
+        // If there is a path return the closest parent transactioncontroller or the thread group
+        if(!limitedList.isEmpty())
+        {
+            return limitedList.get(0);
+        }
+
+        return null;
     }
 
     private SampleResult processSampler(Sampler current, Sampler parent, JMeterContext threadContext)
