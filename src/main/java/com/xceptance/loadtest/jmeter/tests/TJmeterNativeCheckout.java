@@ -23,7 +23,7 @@ public class TJmeterNativeCheckout extends JMeterTestCase
         try
         {
             super.init();
-            fileName = "Checkout.jmx";
+            fileName = "Assertion_Check.jmx";
 
             Optional<File> testPlan = DataFileProvider.dataFile(fileName);
             Assert.assertTrue("The "+ fileName +" file could not be found.", testPlan.isPresent());
