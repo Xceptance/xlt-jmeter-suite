@@ -9,11 +9,22 @@ import org.apache.jorphan.collections.HashTree;
 import org.junit.Assert;
 
 import java.io.File;
+import java.util.List;
 import java.util.Optional;
 
 public abstract class AbstractComponentTest extends JMeterTestCase
 {
     protected String jmxSource;
+
+    protected boolean useRequestMode = true;
+
+    private CustomJMeterEngine jmeter;
+
+    protected String[] expectedActionNames;
+
+    protected String[] expectedActionNamesRequestMode;
+
+    protected String[] expectedActionNamesTransactionMode;
 
     public AbstractComponentTest()
     {
@@ -44,8 +55,33 @@ public abstract class AbstractComponentTest extends JMeterTestCase
         HashTree tree = SaveService.loadTree(testPlan.get());
 
         JMeterUtils.initLocale();
-        CustomJMeterEngine jmeter = new CustomJMeterEngine();
+        jmeter = new CustomJMeterEngine(useRequestMode);
         jmeter.configure(tree);
         jmeter.run();
+    }
+
+    public void validateActions() throws Throwable
+    {
+        int i = 0;
+        System.out.println("Use RequestNaming: " + useRequestMode);
+        for(String actionName : getActionNames())
+        {
+            String expectedActionName;
+            if(i < expectedActionNames.length)
+            {
+                expectedActionName = expectedActionNames[i++];
+            }
+            else
+            {
+                expectedActionName = "[empty]";
+            }
+            Assert.assertEquals("Expected: " + expectedActionName + " Got: " + actionName, expectedActionName, actionName);
+            System.out.println(expectedActionName + " vs " + actionName);
+        }
+    }
+
+    protected List<String> getActionNames()
+    {
+        return jmeter.getActionNames();
     }
 }

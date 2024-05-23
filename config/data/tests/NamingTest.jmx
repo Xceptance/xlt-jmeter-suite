@@ -20,7 +20,7 @@
         </elementProp>
       </ThreadGroup>
       <hashTree>
-        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="RequestA" enabled="true">
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="RequestA">
           <stringProp name="HTTPSampler.domain">www.xceptance.com</stringProp>
           <stringProp name="HTTPSampler.protocol">https</stringProp>
           <stringProp name="HTTPSampler.path">/de</stringProp>
@@ -33,7 +33,7 @@
           </elementProp>
         </HTTPSamplerProxy>
         <hashTree/>
-        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" enabled="true">
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy">
           <stringProp name="TestPlan.comments">Unnamed Request</stringProp>
           <stringProp name="HTTPSampler.domain">www.xceptance.com</stringProp>
           <stringProp name="HTTPSampler.protocol">https</stringProp>
@@ -107,12 +107,12 @@
           </HTTPSamplerProxy>
           <hashTree/>
         </hashTree>
-        <TransactionController guiclass="TransactionControllerGui" testclass="TransactionController" enabled="true">
+        <TransactionController guiclass="TransactionControllerGui" testclass="TransactionController">
           <stringProp name="TestPlan.comments">Unnamed TransactionController No Parent Sample</stringProp>
           <boolProp name="TransactionController.includeTimers">false</boolProp>
         </TransactionController>
         <hashTree>
-          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="RequestC" enabled="true">
+          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="RequestC">
             <stringProp name="HTTPSampler.domain">www.xceptance.com</stringProp>
             <stringProp name="HTTPSampler.protocol">https</stringProp>
             <stringProp name="HTTPSampler.path">/de</stringProp>
@@ -139,7 +139,7 @@
             </elementProp>
           </HTTPSamplerProxy>
           <hashTree/>
-          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" enabled="true">
+          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy">
             <stringProp name="TestPlan.comments">Another Unnamed Request</stringProp>
             <stringProp name="HTTPSampler.domain">www.xceptance.com</stringProp>
             <stringProp name="HTTPSampler.protocol">https</stringProp>
@@ -154,7 +154,7 @@
           </HTTPSamplerProxy>
           <hashTree/>
         </hashTree>
-        <TransactionController guiclass="TransactionControllerGui" testclass="TransactionController" testname="TransactionControllerWithParentSample">
+        <TransactionController guiclass="TransactionControllerGui" testclass="TransactionController" testname="TransactionControllerWithParentSample" enabled="true">
           <boolProp name="TransactionController.parent">true</boolProp>
           <boolProp name="TransactionController.includeTimers">false</boolProp>
         </TransactionController>
@@ -254,7 +254,7 @@
           <stringProp name="LoopController.loops">2</stringProp>
         </LoopController>
         <hashTree>
-          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="RequestF" enabled="true">
+          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="RequestF">
             <stringProp name="HTTPSampler.domain">www.xceptance.com</stringProp>
             <stringProp name="HTTPSampler.protocol">https</stringProp>
             <stringProp name="HTTPSampler.path">/de</stringProp>
@@ -268,16 +268,16 @@
           </HTTPSamplerProxy>
           <hashTree/>
         </hashTree>
-        <LoopController guiclass="LoopControlPanel" testclass="LoopController" testname="LoopControllerWithTransactionController" enabled="true">
+        <LoopController guiclass="LoopControlPanel" testclass="LoopController" testname="LoopControllerWithTransactionController">
           <boolProp name="LoopController.continue_forever">true</boolProp>
           <stringProp name="LoopController.loops">2</stringProp>
         </LoopController>
         <hashTree>
-          <TransactionController guiclass="TransactionControllerGui" testclass="TransactionController" testname="TransactionControllerInLoopControllerNoParentSample" enabled="true">
+          <TransactionController guiclass="TransactionControllerGui" testclass="TransactionController" testname="TransactionControllerInLoopControllerNoParentSample">
             <boolProp name="TransactionController.includeTimers">false</boolProp>
           </TransactionController>
           <hashTree/>
-          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="RequestG" enabled="true">
+          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="RequestG">
             <stringProp name="HTTPSampler.domain">www.xceptance.com</stringProp>
             <stringProp name="HTTPSampler.protocol">https</stringProp>
             <stringProp name="HTTPSampler.path">/de</stringProp>
@@ -445,7 +445,7 @@
             <hashTree/>
           </hashTree>
         </hashTree>
-        <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="View Results Tree" enabled="true">
+        <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="View Results Tree">
           <boolProp name="ResultCollector.error_logging">false</boolProp>
           <objProp>
             <name>saveConfig</name>

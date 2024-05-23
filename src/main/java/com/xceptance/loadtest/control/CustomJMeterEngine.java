@@ -35,6 +35,7 @@ import org.junit.Assert;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 public class CustomJMeterEngine extends StandardJMeterEngine
@@ -46,7 +47,7 @@ public class CustomJMeterEngine extends StandardJMeterEngine
      *  the current index of the unnamed element).
      */
     // maybe we should name it PROCESS_REQUESTS_INDEPENDENTLY
-    private static final boolean USE_REQUEST_NAMING = false;
+    private boolean useRequestNaming;
 
     private boolean running;
     private HashTree test;
@@ -71,16 +72,37 @@ public class CustomJMeterEngine extends StandardJMeterEngine
 
     private static final String UNNAMED_THREAD_GROUP = "UnnamedThreadGroup_";
 
-    private static final String UNNAMED_TRANSACTION_CONTROLLER = "UnnamedTransactionGroup_";
+    private static final String UNNAMED_TRANSACTION_CONTROLLER = "UnnamedTransactionController_";
 
     private static final String UNNAMED_REQUEST = "UnnamedRequest_";
 
+    private Controller previousController;
+
+    private Controller closestTransactionOrThreadParentController;
+
+    private boolean isInitializedNewSampler = false;
 
     // In case the user has selected "Generate parent sample" on a Transaction Controller we have to process
     // the sub samples instead of the actual samplers which usually follow.
     boolean isInsideOrDirectTransactionSampler = false;
 
-    String transactionControllerName = "";
+    private String transactionControllerName = "";
+
+    private List<String> actionNames;
+
+    private int unnamedRequestCounter = 0;
+
+    private int unnamedTransactionControllerCounter = 0;
+
+    public CustomJMeterEngine(boolean useRequestNaming)
+    {
+        this.useRequestNaming = useRequestNaming;
+    }
+
+    public CustomJMeterEngine()
+    {
+        this.useRequestNaming = true;
+    }
 
     @Override
     public void configure(HashTree testTree)
@@ -91,7 +113,8 @@ public class CustomJMeterEngine extends StandardJMeterEngine
         threadVars = new JMeterVariables();
     }
 
-    public void setEngine(CustomJMeterEngine engine) {
+    public void setEngine(CustomJMeterEngine engine)
+    {
         this.engine = engine;
     }
 
@@ -108,6 +131,8 @@ public class CustomJMeterEngine extends StandardJMeterEngine
     {
         running = true;
 
+        actionNames = new ArrayList<>();
+
         /*
          * Ensure that the sample variables are correctly initialised for each run.
          */
@@ -123,8 +148,7 @@ public class CustomJMeterEngine extends StandardJMeterEngine
             PreCompiler compiler = new PreCompiler();
             test.traverse(compiler);
         }
-        catch
-        (RuntimeException e)
+        catch(RuntimeException e)
         {
             JMeterUtils.reportErrorToUser("Error occurred compiling the tree: - see log file", e);
             return; // no point continuing
@@ -167,6 +191,8 @@ public class CustomJMeterEngine extends StandardJMeterEngine
 
         // Counter for unnamed ThreadGroups
         int unknownThreadGroupCounter = 0;
+        unnamedRequestCounter = 0;
+        unnamedTransactionControllerCounter = 0;
 
         // The first items in the test plan do always represent the thread groups. There can be multiple thread groups
         // in a test plan, so we have to iterate over all of them
@@ -249,8 +275,6 @@ public class CustomJMeterEngine extends StandardJMeterEngine
             return;
         }
 
-        int unnamedRequestCounter = 0;
-        int unnamedTransactionControllerCounter = 0;
         // Reset of global variables
         running = true;
         index = 0;
@@ -286,7 +310,7 @@ public class CustomJMeterEngine extends StandardJMeterEngine
 
             // First check if the action name is derived from the request name. If requests have no name a default name
             // is used
-            if(USE_REQUEST_NAMING)
+            if(useRequestNaming)
             {
                 String requestName = "";
                 if(sam instanceof HTTPSamplerProxy)
@@ -345,6 +369,7 @@ public class CustomJMeterEngine extends StandardJMeterEngine
 
             try
             {
+                actionNames.add(name);
                 Actions.run(name, t ->
                 {
                     while(running && sam != null)
@@ -367,58 +392,173 @@ public class CustomJMeterEngine extends StandardJMeterEngine
 
                         sam = mainController.next();
 
-                        // Check if we are still below the current parent for naming (transaction controller or thread group)
-                        // If we are below a thread group: the name cannont change because we call it from outside
-                        Controller parentNameOfCurrentSampler = getClosestTransactionOrThreadParentController(threadGroupHashtree, sam);
-
                         // TODO: check isEnabled (several locations required)
 
-                        // get the first parent controller node, for naming and action bundling
-                        if(sam != null && !mainController.isDone())
+                        if(sam == null || mainController.isDone())
                         {
-                            // If JMeter is processing TransactionControllers with "Generate parent sample" we
-                            // work on the underlying sub samples of the transaction sampler
-                            if(sam instanceof TransactionSampler)
-                            {
-                                // If all requests, or whatever belongs to this transaction, are processed, continue
-                                if(((TransactionSampler) sam).isTransactionDone())
-                                {
-                                    // Move to the next TransactionController
-                                    sam = mainController.next();
+                            running = false;
+                            break;
+                        }
 
-                                    // If there are no further TransactionControllers we are done
-                                    if(sam == null)
+                        // get the first parent controller node, for naming and action bundling
+                        //if(sam != null && !mainController.isDone())
+                        //{
+
+                        // If JMeter is processing TransactionControllers with "Generate parent sample" we
+                        // work on the underlying sub samples of the transaction sampler
+                        if(sam instanceof TransactionSampler)
+                        {
+                            if(((TransactionSampler) sam).isTransactionDone())
+                            {
+                                break;
+                            }
+
+                            isInsideOrDirectTransactionSampler = true;
+                            previousController = closestTransactionOrThreadParentController;
+                            closestTransactionOrThreadParentController = getClosestTransactionOrThreadParentController(threadGroupHashtree,
+                                                                                                                       ((TransactionSampler) sam).getSubSampler());
+
+                            if(closestTransactionOrThreadParentController != null)
+                            {
+                                if(closestTransactionOrThreadParentController instanceof ThreadGroup)
+                                {
+                                    if(closestTransactionOrThreadParentController.getName().length() !=0 &&
+                                       closestTransactionOrThreadParentController.getName().equals(threadGroupName) == false)
                                     {
-                                        running = false;
+                                        isInsideOrDirectTransactionSampler = true;
+                                        // We must reuse the passed name, in case the thread group is unnamed (and has a fallback name)
+                                        transactionControllerName = threadGroupName;
+                                        break;
                                     }
-                                    else if(name.equals(sam.getName()))
+                                }
+                                // There is a new parent for the current sampler, so we need to open a new action
+                                else if(closestTransactionOrThreadParentController instanceof TransactionController)
+                                {
+                                    String currentName = closestTransactionOrThreadParentController.getName();
+                                    // If the transaction controller is unnamed check if the current unnamed transaction
+                                    // controller is a new one (or if we need to fire the next request under the current one)
+                                    if(currentName.length() == 0 || closestTransactionOrThreadParentController == previousController)
                                     {
                                         continue;
                                     }
+                                    if(currentName.equals(name) == false)
+                                    {
+                                        transactionControllerName = currentName;
+                                        break;
+                                    }
+                                }
+                                else if(closestTransactionOrThreadParentController instanceof TransactionSampler)
+                                {
+                                    String currentName = closestTransactionOrThreadParentController.getName();
+                                    // Unnamed but the same controller
+                                    if(closestTransactionOrThreadParentController == previousController)
+                                    {
+                                        // keep the same name
+                                        continue;
+                                    }
+                                    else
+                                    {
+                                        transactionControllerName = currentName;
+                                        break;
+                                    }
+                                }
+                                else
+                                {
+                                    // No fallback implemented yet
+                                    Assert.fail("FAIL!");
+                                }
+                            }
+                            else
+                            {
+                                System.out.printf("abc");
+                                break;
+                            }
+
+
+                            /*
+                            // If all requests, or whatever belongs to this transaction, are processed, continue
+                            if(((TransactionSampler) sam).isTransactionDone())
+                            {
+                                isInsideOrDirectTransactionSampler = false;
+
+                                // Move to the next TransactionController
+                                sam = mainController.next();
+
+                                // If there are no further TransactionControllers we are done
+                                if(sam == null)
+                                {
+                                    running = false;
+                                }
+                                else if(name.equals(sam.getName()))
+                                {
+                                    continue;
+                                }
+
+                                break;
+                            }
+                            else
+                            {
+                                isInsideOrDirectTransactionSampler = true;
+
+                                String prevName = "";
+                                if(previousController != null)
+                                {
+                                    prevName = previousController.getName();
+                                }
+
+                                // If the transaction controller is unnamed check if the current unnamed transaction
+                                // controller is a new one (or if we need to fire the next request under the current one)
+
+                                // Look if we are still below the previous unnamed controller
+                                if(sam.getName().length() == 0 && sam == previousController)
+                                {
+                                    continue;
+                                }
+                                if(sam.getName().equals(prevName) == false)
+                                {
+                                    transactionControllerName = sam.getName();
+                                    previousController = getClosestTransactionOrThreadParentController(threadGroupHashtree,
+                                                                                                       ((TransactionSampler) sam).getSubSampler());
                                     break;
                                 }
                                 else
                                 {
-                                    // Default: The transaction (for example, Visit, has more requests to process)
-                                    // sam = ((TransactionSampler) sam).getSubSampler();
-
-                                    // a new transaction controller means we have to switch to a new action
-                                    break;
+                                    closestTransactionOrThreadParentController = getClosestTransactionOrThreadParentController(threadGroupHashtree,
+                                                                                                       ((TransactionSampler) sam).getSubSampler());
                                 }
-                            }
 
-                            if(USE_REQUEST_NAMING)
-                            {
-                                break;
+
+                                // Default: The transaction (for example, Visit, has more requests to process)
+                                // sam = ((TransactionSampler) sam).getSubSampler();
+
+                                // a new transaction controller means we have to switch to a new action
+                                // running = false;
                             }
+                            */
                         }
 
-                        if(parentNameOfCurrentSampler != null)
+                        if(useRequestNaming)
                         {
-                            if(parentNameOfCurrentSampler instanceof ThreadGroup)
+                            break;
+                        }
+
+                        //}
+
+                            // Check if we are still below the current parent for naming (transaction controller or thread group)
+                        // If we are below a thread group: the name cannot change because we call it from outside
+                        if(closestTransactionOrThreadParentController != null)
+                        {
+                            previousController = closestTransactionOrThreadParentController;
+                        }
+
+                        closestTransactionOrThreadParentController = getClosestTransactionOrThreadParentController(threadGroupHashtree, sam);
+
+                        if(closestTransactionOrThreadParentController != null)
+                        {
+                            if(closestTransactionOrThreadParentController instanceof ThreadGroup)
                             {
-                                if(parentNameOfCurrentSampler.getName().length() !=0 &&
-                                   parentNameOfCurrentSampler.getName().equals(threadGroupName) == false)
+                                if(closestTransactionOrThreadParentController.getName().length() !=0 &&
+                                   closestTransactionOrThreadParentController.getName().equals(threadGroupName) == false)
                                 {
                                     isInsideOrDirectTransactionSampler = true;
                                     // We must reuse the passed name, in case the thread group is unnamed (and has a fallback name)
@@ -427,12 +567,19 @@ public class CustomJMeterEngine extends StandardJMeterEngine
                                 }
                             }
                             // There is a new parent for the current sampler, so we need to open a new action
-                            else if(parentNameOfCurrentSampler instanceof TransactionController)
+                            else if(closestTransactionOrThreadParentController instanceof TransactionController)
                             {
-                                if(parentNameOfCurrentSampler.getName().equals(name) == false)
+                                String currentName = closestTransactionOrThreadParentController.getName();
+                                // If the transaction controller is unnamed check if the current unnamed transaction
+                                // controller is a new one (or if we need to fire the next request under the current one)
+                                if(currentName.length() == 0 && closestTransactionOrThreadParentController == previousController)
+                                {
+                                    continue;
+                                }
+                                if(currentName.equals(name) == false)
                                 {
                                     isInsideOrDirectTransactionSampler = true;
-                                    transactionControllerName = parentNameOfCurrentSampler.getName();
+                                    transactionControllerName = currentName;
                                     break;
                                 }
                             }
@@ -771,5 +918,10 @@ public class CustomJMeterEngine extends StandardJMeterEngine
         result.setGroupThreads(nbActiveThreadsInThreadGroup);
         result.setAllThreads(nbTotalActiveThreads);
         result.setThreadName(""); // no thread name
+    }
+
+    public List<String> getActionNames()
+    {
+        return Collections.unmodifiableList(actionNames);
     }
 }
