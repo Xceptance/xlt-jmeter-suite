@@ -1,10 +1,11 @@
 package com.xceptance.loadtest.control;
 
-import com.xceptance.loadtest.data.util.Actions;
-import com.xceptance.loadtest.jmeter.util.AssertionHandler;
-import com.xceptance.loadtest.jmeter.util.HttpRequestHandler;
-import com.xceptance.loadtest.jmeter.util.XLTJMeterUtils;
-import com.xceptance.xlt.api.engine.Session;
+import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+
 import org.apache.commons.lang3.StringUtils;
 import org.apache.jmeter.control.Controller;
 import org.apache.jmeter.control.LoopController;
@@ -22,8 +23,16 @@ import org.apache.jmeter.samplers.Sampler;
 import org.apache.jmeter.testelement.TestElement;
 import org.apache.jmeter.testelement.TestIterationListener;
 import org.apache.jmeter.testelement.TestStateListener;
+import org.apache.jmeter.threads.AbstractThreadGroup;
+import org.apache.jmeter.threads.FindTestElementsUpToRootTraverser;
+import org.apache.jmeter.threads.JMeterContext;
+import org.apache.jmeter.threads.JMeterContextService;
+import org.apache.jmeter.threads.JMeterVariables;
+import org.apache.jmeter.threads.PostThreadGroup;
+import org.apache.jmeter.threads.SamplePackage;
+import org.apache.jmeter.threads.SetupThreadGroup;
+import org.apache.jmeter.threads.TestCompiler;
 import org.apache.jmeter.threads.ThreadGroup;
-import org.apache.jmeter.threads.*;
 import org.apache.jmeter.util.JMeterUtils;
 import org.apache.jorphan.collections.HashTree;
 import org.apache.jorphan.collections.ListedHashTree;
@@ -32,11 +41,11 @@ import org.apache.jorphan.util.JMeterStopTestException;
 import org.apiguardian.api.API;
 import org.junit.Assert;
 
-import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
+import com.xceptance.loadtest.data.util.Actions;
+import com.xceptance.loadtest.jmeter.util.AssertionHandler;
+import com.xceptance.loadtest.jmeter.util.HttpRequestHandler;
+import com.xceptance.loadtest.jmeter.util.XLTJMeterUtils;
+import com.xceptance.xlt.api.engine.Session;
 
 public class CustomJMeterEngine extends StandardJMeterEngine
 {
@@ -59,9 +68,6 @@ public class CustomJMeterEngine extends StandardJMeterEngine
     private final boolean isSameUserOnNextIteration = true;
     private Collection<TestIterationListener> testIterationStartListeners;
     private Sampler sam;
-    private FindTestElementsUpToRootTraverser pathToRootTraverser;
-    private List<Controller> controllersToRoot;
-    private Controller controller;
     private String name;
     private int index;
     private AssertionHandler assertionHandler;
@@ -79,8 +85,6 @@ public class CustomJMeterEngine extends StandardJMeterEngine
     private Controller previousController;
 
     private Controller closestTransactionOrThreadParentController;
-
-    private boolean isInitializedNewSampler = false;
 
     // In case the user has selected "Generate parent sample" on a Transaction Controller we have to process
     // the sub samples instead of the actual samplers which usually follow.
@@ -609,6 +613,8 @@ public class CustomJMeterEngine extends StandardJMeterEngine
 
                 // TODO Auto-generated catch block
                 e.printStackTrace();
+//                Error error = new Error();
+//                throw error;
             }
         }
     }
