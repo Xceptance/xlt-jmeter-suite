@@ -2,6 +2,7 @@ package com.xceptance.loadtest.jmeter.util;
 
 import java.util.List;
 
+import org.apache.jmeter.extractor.DebugPostProcessor;
 import org.apache.jmeter.processor.PostProcessor;
 import org.apache.jmeter.processor.PreProcessor;
 import org.apache.jmeter.testbeans.TestBeanHelper;
@@ -22,7 +23,16 @@ public class XLTJMeterUtils
         for (PostProcessor ex : extractors) 
         {
             TestBeanHelper.prepare((TestElement) ex);
-            ex.process();
+            
+            if (ex instanceof DebugPostProcessor)
+            {
+                // skip we do not support DebugPostProcessor, since this depend on an actual JMeter Thread for handling, which we do not use
+                
+            }
+            else
+            {
+                ex.process();
+            }
         }
     }
 
