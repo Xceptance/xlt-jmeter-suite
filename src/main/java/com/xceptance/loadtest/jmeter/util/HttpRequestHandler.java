@@ -24,9 +24,19 @@ public class HttpRequestHandler
 {
     public static SampleResult buildAndExecuteRequest(SampleResult pack, SamplePackage data, String requestName) throws Throwable
     {
-        HTTPSamplerProxy sampler = (HTTPSamplerProxy) data.getSampler();
+        HTTPSamplerProxy sampler = null;
         HeaderManager hm = null;
         AuthManager am = null;
+        
+        if (data.getSampler() instanceof HTTPSamplerProxy)
+        {
+            sampler = (HTTPSamplerProxy) data.getSampler();
+        }
+        else
+        {
+            // nothing to do here, probably a script/non executable request
+            return pack;
+        }
         
         List<ConfigTestElement> configs = data.getConfigs();
 
