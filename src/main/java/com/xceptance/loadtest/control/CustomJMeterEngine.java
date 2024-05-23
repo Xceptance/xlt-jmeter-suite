@@ -19,6 +19,7 @@ import org.apache.jmeter.protocol.http.sampler.HTTPSamplerProxy;
 import org.apache.jmeter.samplers.SampleEvent;
 import org.apache.jmeter.samplers.SampleResult;
 import org.apache.jmeter.samplers.Sampler;
+import org.apache.jmeter.testbeans.TestBeanHelper;
 import org.apache.jmeter.testelement.TestElement;
 import org.apache.jmeter.testelement.TestIterationListener;
 import org.apache.jmeter.testelement.TestStateListener;
@@ -382,7 +383,7 @@ public class CustomJMeterEngine extends StandardJMeterEngine
                         // - or the last sample failed AND the onErrorStartNextLoop option is enabled
                         if(context.getTestLogicalAction() != JMeterContext.TestLogicalAction.CONTINUE || !lastSampleOk)
                         {
-                            context.setTestLogicalAction(JMeterContext.TestLogicalAction.CONTINUE);
+                            context.setTestLogicalAction(JMeterContext.TestLogicalAction.CONTINUE);                            
                         }
 
                         sam = mainController.next();
@@ -772,6 +773,7 @@ public class CustomJMeterEngine extends StandardJMeterEngine
         {
             Sampler sampler = pack.getSampler();
             sampler.setThreadContext(JMeterContextService.getContext());
+            TestBeanHelper.prepare(sampler);
             result =  sampler.sample(null);
 
             //*************************************************************
