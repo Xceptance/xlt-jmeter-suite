@@ -38,16 +38,16 @@
           </HTTPSamplerProxy>
           <hashTree/>
           <JSR223Sampler guiclass="TestBeanGUI" testclass="JSR223Sampler" testname="JSR223 Sampler">
-            <stringProp name="cacheKey">true</stringProp>
+            <stringProp name="cacheKey">false</stringProp>
             <stringProp name="filename"></stringProp>
             <stringProp name="parameters"></stringProp>
-            <stringProp name="script">vars.put(&quot;counter&quot;,&quot;1&quot;);</stringProp>
+            <stringProp name="script"> vars.put(&quot;counter&quot;,&quot;1&quot;)</stringProp>
             <stringProp name="scriptLanguage">groovy</stringProp>
           </JSR223Sampler>
           <hashTree/>
         </hashTree>
         <WhileController guiclass="WhileControllerGui" testclass="WhileController" testname="While Controller">
-          <stringProp name="WhileController.condition">${__javaScript(parseInt(vars.get(&quot;counter&quot;))&lt;=5)}</stringProp>
+          <stringProp name="WhileController.condition">${counter}</stringProp>
         </WhileController>
         <hashTree>
           <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Crawler">
@@ -63,13 +63,31 @@
             </elementProp>
           </HTTPSamplerProxy>
           <hashTree>
+            <DebugPostProcessor guiclass="TestBeanGUI" testclass="DebugPostProcessor" testname="Debug PostProcessor" enabled="false">
+              <boolProp name="displayJMeterProperties">true</boolProp>
+              <boolProp name="displayJMeterVariables">true</boolProp>
+              <boolProp name="displaySamplerProperties">true</boolProp>
+              <boolProp name="displaySystemProperties">false</boolProp>
+            </DebugPostProcessor>
+            <hashTree/>
             <AnchorModifier guiclass="AnchorModifierGui" testclass="AnchorModifier" testname="HTML Link Parser"/>
             <hashTree/>
             <JSR223PostProcessor guiclass="TestBeanGUI" testclass="JSR223PostProcessor" testname="JSR223 PostProcessor">
               <stringProp name="cacheKey">true</stringProp>
               <stringProp name="filename"></stringProp>
               <stringProp name="parameters"></stringProp>
-              <stringProp name="script">int counter = Integer.parseInt(vars.get(&quot;counter&quot;)) +1; vars.put(&quot;counter&quot;,Integer.toString(counter));</stringProp>
+              <stringProp name="script">if(vars.get(&quot;counter&quot;) != &quot;false&quot;)
+{
+	int counter = Integer.parseInt(vars.get(&quot;counter&quot;)) +1;
+	if(counter &gt; 5)
+	{
+		vars.put(&quot;counter&quot;, &quot;false&quot;);
+	}
+	else
+	{
+		vars.put(&quot;counter&quot;, Integer.toString(counter));
+	}
+}</stringProp>
               <stringProp name="scriptLanguage">groovy</stringProp>
             </JSR223PostProcessor>
             <hashTree/>
