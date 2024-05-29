@@ -39,7 +39,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
-public class CustomJMeterEngine extends StandardJMeterEngine
+public class XLTJMeterEngine extends StandardJMeterEngine
 {
     /* If the setting below is set to <true> the code tries to inherit the action's name from the request name. If there is
      * no request name or the setting is <false> the closest TransactionController's name will be used, if available.
@@ -55,7 +55,7 @@ public class CustomJMeterEngine extends StandardJMeterEngine
     private static final List<TestStateListener> testList = new ArrayList<>();
     private JMeterVariables threadVars;
     private TestCompiler compiler;
-    private CustomJMeterEngine engine = null; // For access to stop methods.
+    private XLTJMeterEngine engine = null; // For access to stop methods.
     private Controller mainController;
     private final boolean isSameUserOnNextIteration = true;
     private Collection<TestIterationListener> testIterationStartListeners;
@@ -90,12 +90,12 @@ public class CustomJMeterEngine extends StandardJMeterEngine
 
     private int unnamedTransactionControllerCounter = 0;
 
-    public CustomJMeterEngine(boolean useRequestNaming)
+    public XLTJMeterEngine(boolean useRequestNaming)
     {
         this.useRequestNaming = useRequestNaming;
     }
 
-    public CustomJMeterEngine()
+    public XLTJMeterEngine()
     {
         this.useRequestNaming = true;
     }
@@ -109,7 +109,7 @@ public class CustomJMeterEngine extends StandardJMeterEngine
         threadVars = new JMeterVariables();
     }
 
-    public void setEngine(CustomJMeterEngine engine)
+    public void setEngine(XLTJMeterEngine engine)
     {
         this.engine = engine;
     }

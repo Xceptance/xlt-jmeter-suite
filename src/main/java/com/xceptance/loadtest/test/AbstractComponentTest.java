@@ -1,7 +1,7 @@
 package com.xceptance.loadtest.test;
 
 import com.xceptance.loadtest.api.data.DataFileProvider;
-import com.xceptance.loadtest.control.CustomJMeterEngine;
+import com.xceptance.loadtest.control.XLTJMeterEngine;
 import com.xceptance.loadtest.control.JMeterTestCase;
 import org.apache.jmeter.save.SaveService;
 import org.apache.jmeter.util.JMeterUtils;
@@ -18,7 +18,7 @@ public abstract class AbstractComponentTest extends JMeterTestCase
 
     protected boolean useRequestMode = true;
 
-    private CustomJMeterEngine jmeter;
+    private XLTJMeterEngine jmeter;
 
     protected String[] expectedActionNames;
 
@@ -55,7 +55,7 @@ public abstract class AbstractComponentTest extends JMeterTestCase
         HashTree tree = SaveService.loadTree(testPlan.get());
 
         JMeterUtils.initLocale();
-        jmeter = new CustomJMeterEngine(useRequestMode);
+        jmeter = new XLTJMeterEngine(useRequestMode);
         jmeter.configure(tree);
         jmeter.run();
     }
