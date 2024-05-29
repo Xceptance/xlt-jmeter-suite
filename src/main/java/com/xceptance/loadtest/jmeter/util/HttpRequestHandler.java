@@ -21,7 +21,9 @@ import org.apache.jmeter.samplers.SampleResult;
 import org.apache.jmeter.testelement.property.CollectionProperty;
 import org.apache.jmeter.threads.SamplePackage;
 import org.htmlunit.HttpMethod;
+import org.htmlunit.WebClient;
 
+import com.xceptance.loadtest.addons.util.Context;
 import com.xceptance.xlt.engine.httprequest.HttpRequest;
 import com.xceptance.xlt.engine.httprequest.HttpResponse;
 
@@ -120,6 +122,7 @@ public class HttpRequestHandler extends HTMLParser
                 request.param(entry.getKey(), entry.getValue());
             };
         }
+        
         return request;
     }
     
