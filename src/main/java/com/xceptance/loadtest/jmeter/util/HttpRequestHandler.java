@@ -1,6 +1,8 @@
 package com.xceptance.loadtest.jmeter.util;
 
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -11,6 +13,9 @@ import org.apache.jmeter.config.ConfigTestElement;
 import org.apache.jmeter.protocol.http.control.AuthManager;
 import org.apache.jmeter.protocol.http.control.Authorization;
 import org.apache.jmeter.protocol.http.control.HeaderManager;
+import org.apache.jmeter.protocol.http.parser.HTMLParseException;
+import org.apache.jmeter.protocol.http.parser.HTMLParser;
+import org.apache.jmeter.protocol.http.parser.URLCollection;
 import org.apache.jmeter.protocol.http.sampler.HTTPSamplerProxy;
 import org.apache.jmeter.samplers.SampleResult;
 import org.apache.jmeter.testelement.property.CollectionProperty;
@@ -20,12 +25,12 @@ import org.htmlunit.HttpMethod;
 import com.xceptance.xlt.engine.httprequest.HttpRequest;
 import com.xceptance.xlt.engine.httprequest.HttpResponse;
 
-public class HttpRequestHandler
+public class HttpRequestHandler extends HTMLParser
 {
     public static SampleResult buildAndExecuteRequest(SampleResult pack, SamplePackage data, String requestName) throws Throwable
     {
         HTTPSamplerProxy sampler = null;
-        HeaderManager hm = null;
+        List<HeaderManager> hm = new ArrayList<>();
         AuthManager am = null;
         
         if (data.getSampler() instanceof HTTPSamplerProxy)
@@ -44,7 +49,7 @@ public class HttpRequestHandler
         {
             if (element instanceof HeaderManager)
             {
-                hm = (HeaderManager) element;
+                hm.add((HeaderManager)element);
             }
             if (element instanceof AuthManager)
             {
@@ -118,15 +123,26 @@ public class HttpRequestHandler
         return request;
     }
     
-    private static HttpRequest addHeaderData(HttpRequest request, HeaderManager headerData)
+    private static HttpRequest addHeaderData(HttpRequest request, List<HeaderManager> headerData)
     {
         // transform header keys/values from loaded data to request confirm data
-        CollectionProperty headers = headerData.getHeaders();
-        headers.forEach(p -> 
+        headerData.forEach(e ->
         {
-            // remove name from the combined value attribute
-            request.header(p.getName(), p.getStringValue().replace(p.getName(), "")); 
+            CollectionProperty headers = e.getHeaders();
+            headers.forEach(p -> 
+            {
+                // remove name from the combined value attribute
+                request.header(p.getName(), p.getStringValue().replace(p.getName(), "")); 
+            });
         });
         return request;
+    }
+
+    @Override
+    public Iterator<URL> getEmbeddedResourceURLs(String userAgent, byte[] html, URL baseUrl, URLCollection coll,
+            String encoding) throws HTMLParseException
+    {
+        // TODO Auto-generated method stub
+        return null;
     }
 }
