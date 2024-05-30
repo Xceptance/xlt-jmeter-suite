@@ -39,7 +39,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
-public class CustomJMeterEngine extends StandardJMeterEngine
+public class XLTJMeterEngine extends StandardJMeterEngine
 {
     /* If the setting below is set to <true> the code tries to inherit the action's name from the request name. If there is
      * no request name or the setting is <false> the closest TransactionController's name will be used, if available.
@@ -55,7 +55,7 @@ public class CustomJMeterEngine extends StandardJMeterEngine
     private static final List<TestStateListener> testList = new ArrayList<>();
     private JMeterVariables threadVars;
     private TestCompiler compiler;
-    private CustomJMeterEngine engine = null; // For access to stop methods.
+    private XLTJMeterEngine engine = null; // For access to stop methods.
     private Controller mainController;
     private final boolean isSameUserOnNextIteration = true;
     private Collection<TestIterationListener> testIterationStartListeners;
@@ -90,12 +90,12 @@ public class CustomJMeterEngine extends StandardJMeterEngine
 
     private int unnamedTransactionControllerCounter = 0;
 
-    public CustomJMeterEngine(boolean useRequestNaming)
+    public XLTJMeterEngine(boolean useRequestNaming)
     {
         this.useRequestNaming = useRequestNaming;
     }
 
-    public CustomJMeterEngine()
+    public XLTJMeterEngine()
     {
         this.useRequestNaming = true;
     }
@@ -109,7 +109,7 @@ public class CustomJMeterEngine extends StandardJMeterEngine
         threadVars = new JMeterVariables();
     }
 
-    public void setEngine(CustomJMeterEngine engine)
+    public void setEngine(XLTJMeterEngine engine)
     {
         this.engine = engine;
     }
@@ -223,38 +223,6 @@ public class CustomJMeterEngine extends StandardJMeterEngine
         {
             tC.setGenerateParentSample(true);
         }
-
-//        mainController.next();
-//        mainController.next();
-//        mainController.next();
-        /*
-        SearchByClass<GenericController> genericControllerSearchByClass = new SearchByClass<>(GenericController.class);
-        threadGroupHashtree.traverse(genericControllerSearchByClass);
-        Collection<GenericController> allGenericControllers = genericControllerSearchByClass.getSearchResults();
-        List<Controller> subControlList = new ArrayList<>();
-        for(GenericController genericController : allGenericControllers)
-        {
-            System.out.println(genericController);
-            try
-            {
-                // List<Field> allFields = Arrays.asList(GenericController.class.getDeclaredFields());
-                Field subControllersAndSamplers = GenericController.class.getDeclaredField("subControllersAndSamplers");
-                subControllersAndSamplers.setAccessible(true);
-                subControlList = (List<Controller>) subControllersAndSamplers.get(genericController);
-                System.out.println("Children of current controller: " + subControlList);
-                for(TestElement testElement : subControlList)
-                {
-                    Controller a = ((Controller) testElement);
-                    a.next();
-                    // set generate parent stuff
-                }
-            }
-            catch(NoSuchFieldException | IllegalAccessException e)
-            {
-                Assert.fail("Cannot locate field <subControllersAndSamplers> in GenericController class");
-            }
-        }
-        */
 
         JMeterContextService.getContext().setSamplingStarted(true);
 
@@ -469,68 +437,6 @@ public class CustomJMeterEngine extends StandardJMeterEngine
                                 System.out.printf("abc");
                                 break;
                             }
-
-
-                            /*
-                            // If all requests, or whatever belongs to this transaction, are processed, continue
-                            if(((TransactionSampler) sam).isTransactionDone())
-                            {
-                                isInsideOrDirectTransactionSampler = false;
-
-                                // Move to the next TransactionController
-                                sam = mainController.next();
-
-                                // If there are no further TransactionControllers we are done
-                                if(sam == null)
-                                {
-                                    running = false;
-                                }
-                                else if(name.equals(sam.getName()))
-                                {
-                                    continue;
-                                }
-
-                                break;
-                            }
-                            else
-                            {
-                                isInsideOrDirectTransactionSampler = true;
-
-                                String prevName = "";
-                                if(previousController != null)
-                                {
-                                    prevName = previousController.getName();
-                                }
-
-                                // If the transaction controller is unnamed check if the current unnamed transaction
-                                // controller is a new one (or if we need to fire the next request under the current one)
-
-                                // Look if we are still below the previous unnamed controller
-                                if(sam.getName().length() == 0 && sam == previousController)
-                                {
-                                    continue;
-                                }
-                                if(sam.getName().equals(prevName) == false)
-                                {
-                                    transactionControllerName = sam.getName();
-                                    previousController = getClosestTransactionOrThreadParentController(threadGroupHashtree,
-                                                                                                       ((TransactionSampler) sam).getSubSampler());
-                                    break;
-                                }
-                                else
-                                {
-                                    closestTransactionOrThreadParentController = getClosestTransactionOrThreadParentController(threadGroupHashtree,
-                                                                                                       ((TransactionSampler) sam).getSubSampler());
-                                }
-
-
-                                // Default: The transaction (for example, Visit, has more requests to process)
-                                // sam = ((TransactionSampler) sam).getSubSampler();
-
-                                // a new transaction controller means we have to switch to a new action
-                                // running = false;
-                            }
-                            */
                         }
 
                         if(useRequestNaming)

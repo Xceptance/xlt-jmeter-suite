@@ -29,6 +29,7 @@ import org.htmlunit.HttpMethod;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -78,7 +79,7 @@ public class HttpRequestHandler
     public static SampleResult buildAndExecuteRequest(SampleResult pack, SamplePackage data, String requestName) throws Throwable
     {
         HTTPSamplerProxy sampler = null;
-        HeaderManager hm = null;
+        List<HeaderManager> hm = new ArrayList<>();
         AuthManager am = null;
         
         if (data.getSampler() instanceof HTTPSamplerProxy)
@@ -97,7 +98,7 @@ public class HttpRequestHandler
         {
             if (element instanceof HeaderManager)
             {
-                hm = (HeaderManager) element;
+                hm.add((HeaderManager)element);
             }
             if (element instanceof AuthManager)
             {
@@ -374,7 +375,7 @@ public class HttpRequestHandler
             return null;
         }
     }
-    
+
     private static void setBasicAuthenticationHeader(HttpRequest request, final String username, final String password)
     {
         // Is a username for Basic Authentication configured?
@@ -403,14 +404,17 @@ public class HttpRequestHandler
         return request;
     }
     
-    private static HttpRequest addHeaderData(HttpRequest request, HeaderManager headerData)
+    private static HttpRequest addHeaderData(HttpRequest request, List<HeaderManager> headerData)
     {
         // transform header keys/values from loaded data to request confirm data
-        CollectionProperty headers = headerData.getHeaders();
-        headers.forEach(p -> 
+        headerData.forEach(e ->
         {
-            // remove name from the combined value attribute
-            request.header(p.getName(), p.getStringValue().replace(p.getName(), "")); 
+            CollectionProperty headers = e.getHeaders();
+            headers.forEach(p ->
+            {
+                // remove name from the combined value attribute
+                request.header(p.getName(), p.getStringValue().replace(p.getName(), ""));
+            });
         });
         return request;
     }
