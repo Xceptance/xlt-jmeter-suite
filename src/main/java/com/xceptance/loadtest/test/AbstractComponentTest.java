@@ -1,8 +1,9 @@
 package com.xceptance.loadtest.test;
 
 import com.xceptance.loadtest.api.data.DataFileProvider;
-import com.xceptance.loadtest.control.XLTJMeterEngine;
 import com.xceptance.loadtest.control.JMeterTestCase;
+import com.xceptance.loadtest.control.XLTJMeterEngine;
+import org.apache.jmeter.engine.StandardJMeterEngine;
 import org.apache.jmeter.save.SaveService;
 import org.apache.jmeter.util.JMeterUtils;
 import org.apache.jorphan.collections.HashTree;
@@ -48,6 +49,22 @@ public abstract class AbstractComponentTest extends JMeterTestCase
     @Override
     protected void test() throws Throwable
     {
+        HashTree tree = initTest();
+        jmeter = new XLTJMeterEngine(useRequestMode);
+        jmeter.configure(tree);
+        jmeter.run();
+    }
+
+    protected void testWithStandardEngine() throws Throwable
+    {
+        HashTree tree = initTest();
+        StandardJMeterEngine stdEngine = new StandardJMeterEngine();
+        stdEngine.configure(tree);
+        stdEngine.run();
+    }
+
+    private HashTree initTest() throws Throwable
+    {
         Optional<File> testPlan = DataFileProvider.dataFile(jmxSource);
         Assert.assertTrue(jmxSource + " file could not be found.", testPlan.isPresent());
 
@@ -55,9 +72,7 @@ public abstract class AbstractComponentTest extends JMeterTestCase
         HashTree tree = SaveService.loadTree(testPlan.get());
 
         JMeterUtils.initLocale();
-        jmeter = new XLTJMeterEngine(useRequestMode);
-        jmeter.configure(tree);
-        jmeter.run();
+        return tree;
     }
 
     public void validateActions() throws Throwable
