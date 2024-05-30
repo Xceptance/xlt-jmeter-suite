@@ -14,28 +14,9 @@ import com.xceptance.loadtest.data.util.Context;
 /**
  * Base class of a JMeter test
  *
- * @author Rene Schwietzke
  */
 public abstract class JMeterTestCase extends HtmlUnitLoadTestCase
 {
-//    /**
-//     * The determined site
-//     */
-//    private Site site;
-//
-//    /**
-//     * The web client that is used by default for performing the requests.
-//     */
-//    private static final ThreadLocal<XltWebClient> WEBCLIENT = new ThreadLocal<>()
-//    {
-//        @Override
-//        protected XltWebClient initialValue()
-//        {
-//            XltLogger.runTimeLogger.warn("New XltWebClient created");
-//            return new XltWebClient();
-//        }
-//    };
-
     /**
      * Constructor
      */
@@ -61,7 +42,7 @@ public abstract class JMeterTestCase extends HtmlUnitLoadTestCase
     }
 
     /**
-     * Test preparation. Nothing to do here by default. Feel free to override.
+     * Test preparation. Read in the needed base classes for JMeter.
      *
      * @throws Throwable
      *             thrown on error
