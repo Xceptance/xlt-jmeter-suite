@@ -2,7 +2,6 @@ package com.xceptance.loadtest.jmeter.util;
 
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -13,9 +12,6 @@ import org.apache.jmeter.config.ConfigTestElement;
 import org.apache.jmeter.protocol.http.control.AuthManager;
 import org.apache.jmeter.protocol.http.control.Authorization;
 import org.apache.jmeter.protocol.http.control.HeaderManager;
-import org.apache.jmeter.protocol.http.parser.HTMLParseException;
-import org.apache.jmeter.protocol.http.parser.HTMLParser;
-import org.apache.jmeter.protocol.http.parser.URLCollection;
 import org.apache.jmeter.protocol.http.sampler.HTTPSamplerProxy;
 import org.apache.jmeter.samplers.SampleResult;
 import org.apache.jmeter.testelement.property.CollectionProperty;
