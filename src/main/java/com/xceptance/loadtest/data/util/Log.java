@@ -7,7 +7,6 @@ import com.xceptance.xlt.api.util.XltLogger;
 /**
  * Helpers around logging to simplify logging if load test is enabled
  *
- * @author rschwietzke
  */
 public class Log
 {

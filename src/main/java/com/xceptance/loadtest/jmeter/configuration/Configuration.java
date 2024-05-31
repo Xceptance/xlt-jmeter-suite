@@ -8,7 +8,6 @@ import com.xceptance.loadtest.api.configuration.annotations.Property;
 /**
  * Configuration for the Test
  *
- * @author Rene Schwietzke (Xceptance Software Technologies GmbH)
  */
 public class Configuration extends com.xceptance.loadtest.addons.configuration.Configuration
 {

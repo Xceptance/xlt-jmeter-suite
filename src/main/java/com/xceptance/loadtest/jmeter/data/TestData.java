@@ -5,7 +5,6 @@ import java.util.Optional;
 /**
  * Common data collector for all data needed for a test during execution, kind of a global state.
  *
- * @author Rene Schwietzke
  */
 public class TestData extends com.xceptance.loadtest.addons.configuration.TestData
 {

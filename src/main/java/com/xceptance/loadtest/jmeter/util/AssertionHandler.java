@@ -13,31 +13,47 @@ import org.apache.jmeter.testelement.TestElement;
 import org.apache.jmeter.threads.AbstractThreadGroup;
 import org.apache.jmeter.threads.JMeterContext;
 import org.apache.jmeter.threads.JMeterContext.TestLogicalAction;
+import org.apache.jmeter.threads.JMeterThread;
 import org.apache.jorphan.util.JMeterError;
 import org.junit.Assert;
 
 import com.xceptance.loadtest.api.events.EventLogger;
 
+/**
+ * Handle all assertions which can be set on actions in JMeter. Depending on the ThreadGroup settings, this class will as well interrupt the test in
+ * case of an assertions. If the mode is set to continue, in JMeter, XLT will log the assertions as events, to not interrupt the test.
+ * 
+ * The assertions handling is based on code from the {@link JMeterThread}.
+ */
 public class AssertionHandler
 {
     private boolean onErrorStopTest;
     private boolean onErrorStopTestNow;
     private boolean onErrorStopThread;
-    private boolean onErrorStartNextLoop;
+//    private boolean onErrorStartNextLoop; not used, but can be set in JMeter
     
-    private boolean shutdown;
     private boolean logging;
     
+    /**
+     * Constructor, loads the thread group settings for assertion handling.
+     * @param group
+     */
     public AssertionHandler(AbstractThreadGroup group)
     {
         onErrorStopTest = group.getOnErrorStopTest();
         onErrorStopTestNow = group.getOnErrorStopTestNow();
         onErrorStopThread = group.getOnErrorStopThread();
-        onErrorStartNextLoop = group.getOnErrorStartNextLoop();
-        shutdown = false;
+//        onErrorStartNextLoop = group.getOnErrorStartNextLoop();
         logging = true;
     }
     
+    /**
+     * Handle all possible assertions on the current actions in a recursive way.
+     * 
+     * @param assertions
+     * @param parent
+     * @param threadContext
+     */
     public void checkAssertions(List<? extends Assertion> assertions, SampleResult parent, JMeterContext threadContext) 
     {
         for (Assertion assertion : assertions) 
@@ -66,6 +82,12 @@ public class AssertionHandler
         XLTJMeterUtils.setLastSampleOk(threadContext.getVariables(), parent.isSuccessful());
     }
     
+    /**
+     * Depending on the result and settings either log the error or set the test for termination.
+     * 
+     * @param result
+     * @param threadContext
+     */
     public void checkAssertionStatus(SampleResult result, JMeterContext threadContext)
     {
         // no log for errors
@@ -79,27 +101,29 @@ public class AssertionHandler
         // Check if thread or test should be stopped
         if (result.isStopThread() || (!result.isSuccessful() && onErrorStopThread)) 
         {
-            shutdown();
+            // nothing to do
         }
         if (result.isStopTest() || (!result.isSuccessful() && onErrorStopTest))
         {
-            shutdown();
+            // nothing to do
         }
         if (result.isStopTestNow() || (!result.isSuccessful() && onErrorStopTestNow))
         {
-            shutdown();
+            // nothing to do
         }
         if (result.getTestLogicalAction() != TestLogicalAction.CONTINUE) 
         {
             threadContext.setTestLogicalAction(result.getTestLogicalAction());
         }
     }
-    
-    public void shutdown()
-    {
-        shutdown = true;
-    }
 
+    /**
+     * Check all assertions on the current element in recursive way.
+     * 
+     * @param parent
+     * @param assertion
+     * @param level
+     */
     private void recurseAssertionChecks(SampleResult parent, Assertion assertion, int level) 
     {
         if (level < 0) 
@@ -127,6 +151,13 @@ public class AssertionHandler
         }
     }
 
+    /**
+     * Process the assertions, depending on the settings can this terminate the test. If logging is enabled all encountered errors will be logged as events, 
+     * if not the test will be terminated.
+     *  
+     * @param result
+     * @param assertion
+     */
     private void processAssertion(SampleResult result, Assertion assertion) 
     {
         AssertionResult assertionResult = null;

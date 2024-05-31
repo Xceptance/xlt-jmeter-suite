@@ -7,7 +7,6 @@ import com.xceptance.xlt.engine.SessionImpl;
 /**
  * Convenience methods for actions to avoid that you have to program it yourself
  *
- * @author Rene Schwietzke
  */
 public class Actions
 {

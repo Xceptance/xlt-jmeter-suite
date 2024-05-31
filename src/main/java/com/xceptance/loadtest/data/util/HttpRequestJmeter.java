@@ -20,8 +20,6 @@ import com.xceptance.xlt.engine.httprequest.HttpResponse;
  * A Simple Action for basic REST desires, which handles excactly one request. Is able to validate
  * the response and extract values from it.
  *
- * @author b.weigel@xceptance.com
- *
  */
 public class HttpRequestJmeter extends AbstractAction
 {
