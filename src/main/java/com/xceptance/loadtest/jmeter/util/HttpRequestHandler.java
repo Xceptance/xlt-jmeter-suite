@@ -15,6 +15,7 @@ import org.apache.jmeter.protocol.http.parser.LinkExtractorParser;
 import org.apache.jmeter.protocol.http.sampler.HTTPSampleResult;
 import org.apache.jmeter.protocol.http.sampler.HTTPSamplerProxy;
 import org.apache.jmeter.protocol.http.util.ConversionUtils;
+import org.apache.jmeter.protocol.http.util.HTTPConstants;
 import org.apache.jmeter.samplers.SampleResult;
 import org.apache.jmeter.testelement.property.CollectionProperty;
 import org.apache.jmeter.testelement.property.JMeterProperty;
@@ -49,6 +50,16 @@ public class HttpRequestHandler
 
     private static final Map<String, String> PARSERS_FOR_CONTENT_TYPE = new ConcurrentHashMap<>();
 
+    private static final String QRY_SEP = "&"; // $NON-NLS-1$
+
+    private static final String QRY_PFX = "?"; // $NON-NLS-1$
+
+    private static final String HTTP_PREFIX = HTTPConstants.PROTOCOL_HTTP+"://"; // $NON-NLS-1$
+
+    private static final String HTTPS_PREFIX = HTTPConstants.PROTOCOL_HTTPS+"://"; // $NON-NLS-1$
+
+    private static final String PROTOCOL_FILE = "file"; // $NON-NLS-1$
+
     static
     {
         String[] parsers = JOrphanUtils.split(RESPONSE_PARSERS, " ", true);// returns empty array for null
@@ -74,6 +85,229 @@ public class HttpRequestHandler
     static void registerParser(String contentType, String className)
     {
         PARSERS_FOR_CONTENT_TYPE.put(contentType, className);
+    }
+
+    public static HTTPSampleResult createSampleResult(URL url, String method) {
+        HTTPSampleResult res = new HTTPSampleResult();
+
+        res.setHTTPMethod(method);
+        res.setURL(url);
+
+        return res;
+    }
+
+    public static SampleResult buildAndExecute(SamplePackage pack, String requestName) throws Throwable
+    {
+        HTTPSamplerProxy sampler = null;
+        List<HeaderManager> hm = new ArrayList<>();
+        AuthManager am = null;
+        SampleResult resultPack = null;
+        String method;
+        String baseUrl;
+
+        if (pack.getSampler() instanceof HTTPSamplerProxy)
+        {
+            sampler = (HTTPSamplerProxy) pack.getSampler();
+            method = sampler.getMethod();
+            // baseUrl = sampler.toString();
+            baseUrl = sampler.getUrl().toString();
+
+            resultPack = createSampleResult(new URL(baseUrl), method);
+        }
+        else
+        {
+            return pack.getSampler().sample(null);
+        }
+
+        List<ConfigTestElement> configs = pack.getConfigs();
+
+        for (ConfigTestElement element : configs)
+        {
+            if (element instanceof HeaderManager)
+            {
+                hm.add((HeaderManager)element);
+            }
+            if (element instanceof AuthManager)
+            {
+                am = (AuthManager) element;
+            }
+        }
+
+        HttpRequest request = new HttpRequest().timerName(requestName)
+                                               .baseUrl(baseUrl)
+                                               .method(HttpMethod.valueOf(method));
+
+        if (am != null)
+        {
+            Authorization authForURL = am.getAuthForURL(new URL(baseUrl));
+            if (authForURL != null)
+            {
+                // used from auth manager which also ensure Kerberos connection, needs check if we need this
+                // am.getSubjectForUrl(new URL(baseUrl));
+                setBasicAuthenticationHeader(request, authForURL.getUser(), authForURL.getPass());
+            }
+        }
+
+        if (hm != null)
+        {
+            // add header data
+            addHeaderData(request, hm);
+        }
+
+        addArgumentData(request, sampler);
+        HttpResponse response = request.fire();
+
+        resultPack.setResponseData(response.getContentAsString(), null);
+        resultPack.setResponseHeaders(response.getHeaders().toString());
+        resultPack.setResponseCode(String.valueOf(response.getStatusCode())); // set status code for assertion check
+        resultPack.setResponseMessage(response.getStatusMessage());
+        resultPack.setSuccessful(true); // set the request to success -> otherwise the assertion checker will fail
+        resultPack.setContentType(response.getContentType());
+
+        // embedded resources
+        if(sampler.isImageParser())
+        {
+            HTTPSampleResult res = (HTTPSampleResult) resultPack;
+            Iterator<URL> urls = null;
+            try
+            {
+                final byte[] responseData = res.getResponseData();
+                if(responseData.length > 0)
+                {  // Bug 39205
+                    final LinkExtractorParser parser = getParser(res);
+                    if(parser != null)
+                    {
+                        String userAgent = getUserAgent(res);
+                        urls = parser.getEmbeddedResourceURLs(userAgent, responseData, res.getURL(),
+                                                              res.getDataEncodingWithDefault());
+                    }
+                }
+            }
+            catch(LinkExtractorParseException e)
+            {
+                // ignore
+            }
+
+            System.out.println("Test embedded downloading");
+            HTTPSampleResult lContainer = null;
+            if(urls != null && urls.hasNext())
+            {
+                if(lContainer == null)
+                {
+                    lContainer = new HTTPSampleResult(res);
+                    lContainer.addRawSubResult(res);
+                }
+                res = lContainer;
+
+                // Get the URL matcher
+                JMeterProperty allowRegex = sampler.getPropertyOrNull("HTTPSampler.embedded_url_re");
+                Predicate<URL> allowPredicate = null;
+                if(allowRegex != null)
+                {
+                    allowPredicate = generateMatcherPredicate(allowRegex.getStringValue(), "allow", true);
+                }
+                else
+                {
+                    allowPredicate = generateMatcherPredicate("", "allow", true);
+                }
+
+                JMeterProperty excludeRegex = sampler.getPropertyOrNull("HTTPSampler.embedded_url_exclude_re");
+                Predicate<URL> excludePredicate = null;
+                if(excludeRegex != null)
+                {
+                    excludePredicate = generateMatcherPredicate(excludeRegex.getStringValue(), "exclude", false);
+                }
+                else
+                {
+                    excludePredicate = generateMatcherPredicate("", "exclude", false);
+                }
+
+                while(urls.hasNext())
+                {
+                    Object binURL = urls.next(); // See catch clause below
+                    try
+                    {
+                        URL url = (URL) binURL;
+                        if(url == null)
+                        {
+                            // log.warn("Null URL detected (should not happen)");
+                        }
+                        else
+                        {
+                            try
+                            {
+                                url = escapeIllegalURLCharacters(url);
+                            }
+                            catch(Exception e)
+                            {
+                                /*
+                                res.addSubResult(errorResult(new Exception(url.toString() + " is not a correct URI", e),
+                                                             new HTTPSampleResult(res)));
+                                setParentSampleSuccess(res, false);
+                                 */
+                                continue;
+                            }
+                            // log.debug("allowPattern: {}, excludePattern: {}, url: {}", allowRegex, excludeRegex, url);
+                            if(!allowPredicate.test(url))
+                            {
+                                continue; // we have a pattern and the URL does not match, so skip it
+                            }
+                            if(excludePredicate.test(url))
+                            {
+                                continue; // we have a pattern and the URL does not match, so skip it
+                            }
+                            try
+                            {
+                                url = url.toURI().normalize().toURL();
+                            }
+                            catch(MalformedURLException | URISyntaxException e)
+                            {
+                                /*
+                                res.addSubResult(
+                                        errorResult(new Exception(url.toString() + " URI can not be normalized", e),
+                                                    new HTTPSampleResult(res)));
+                                setParentSampleSuccess(res, false);
+                                 */
+                                continue;
+                            }
+
+                            new HttpRequest().timerName(requestName).baseUrl(url.toString())
+                                             .method(HttpMethod.GET)
+                                             .fire();
+
+                            /*
+                            if(isConcurrentDwn)
+                            {
+                                // if concurrent download emb. resources, add to a list for async gets later
+                                list.add(new HTTPSamplerBase.ASyncSample(url, HTTPConstants.GET, false, frameDepth + 1,
+                                                                         getCookieManager(), this));
+                            }
+                            else
+                            {
+                                // default: serial download embedded resources
+                                HTTPSampleResult binRes = sample(url, HTTPConstants.GET, false, frameDepth + 1);
+                                res.addSubResult(binRes);
+                                setParentSampleSuccess(res,
+                                                       res.isSuccessful() && (binRes == null || binRes.isSuccessful()));
+                            }
+                             */
+                        }
+                    }
+                    catch(ClassCastException e)
+                    {
+                        /*
+                        res.addSubResult(errorResult(new Exception(binURL + " is not a correct URI", e),
+                                                     new HTTPSampleResult(res)));
+                        setParentSampleSuccess(res, false);
+                         */
+                    }
+                }
+
+            }
+
+        }
+
+        return resultPack;
     }
 
     public static SampleResult buildAndExecuteRequest(SampleResult pack, SamplePackage data, String requestName) throws Throwable

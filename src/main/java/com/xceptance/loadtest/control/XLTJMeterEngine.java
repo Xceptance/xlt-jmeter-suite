@@ -707,14 +707,15 @@ public class XLTJMeterEngine extends StandardJMeterEngine
             Sampler sampler = pack.getSampler();
             sampler.setThreadContext(JMeterContextService.getContext());
             TestBeanHelper.prepare(sampler);
-            result =  sampler.sample(null);
+            // result =  sampler.sample(null);
 
             //*************************************************************
             // XLT request
             //*************************************************************
             try
             {
-                result = HttpRequestHandler.buildAndExecuteRequest(result, pack, current.getName());
+                result = HttpRequestHandler.buildAndExecute(pack, current.getName());
+                // result = HttpRequestHandler.buildAndExecuteRequest(result, pack, current.getName());
 
                 threadVars.putObject(VAR_IS_SAME_USER_KEY, isSameUserOnNextIteration);
                 threadContext.setVariables(threadVars);
