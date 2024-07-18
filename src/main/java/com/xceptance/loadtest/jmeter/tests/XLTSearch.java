@@ -7,6 +7,6 @@ public class XLTSearch extends AbstractComponentTest
   public XLTSearch()
   {
     useRequestMode = false;
-    jmxSource = "/search.jmx";
+    jmxSource = "/tests/posters.jmx";
   }
 }
