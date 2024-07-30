@@ -7,6 +7,7 @@ public class XLTJMeterCheckout extends AbstractComponentTest
 {
     public XLTJMeterCheckout()
     {
+        useRequestMode = false;
         jmxSource = "/Checkout.jmx";
     } 
 }
