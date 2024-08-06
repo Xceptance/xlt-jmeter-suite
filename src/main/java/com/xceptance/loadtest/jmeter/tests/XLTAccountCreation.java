@@ -7,6 +7,6 @@ public class XLTAccountCreation extends AbstractComponentTest
     public XLTAccountCreation()
     {
       useRequestMode = false;
-      jmxSource ="/accountCreation.jmx";
+      jmxSource ="/tests/accountCreation.jmx";
     }
 }
