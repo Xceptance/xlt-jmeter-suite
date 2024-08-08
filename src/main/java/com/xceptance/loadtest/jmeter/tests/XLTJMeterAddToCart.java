@@ -6,6 +6,7 @@ public class XLTJMeterAddToCart extends AbstractComponentTest
 {
     public XLTJMeterAddToCart()
     {
+        useRequestMode = false;
         jmxSource ="/tests/addToCart.jmx";
     }
 }
