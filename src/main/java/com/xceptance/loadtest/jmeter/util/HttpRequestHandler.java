@@ -455,13 +455,20 @@ public class HttpRequestHandler
     {
         // check and add arguments if there are any
         Arguments arguments = requestData.getArguments();
-        if (arguments.getArgumentCount() > 0)
+        boolean postBodyRaw = requestData.getPostBodyRaw();
+        if (arguments.getArgumentCount() > 0 && !postBodyRaw)
         {
             Map<String, String> argumentsAsMap = arguments.getArgumentsAsMap();
             for (Map.Entry<String, String> entry : argumentsAsMap.entrySet())
             {
                 request.param(entry.getKey(), entry.getValue());
             };
+        }
+        else if (postBodyRaw)
+        {
+            // add the raw request body to the request, values are saved in LinkedHashMap
+            Map<String, String> argumentsAsMap = arguments.getArgumentsAsMap();
+            request.body(String.valueOf(argumentsAsMap.entrySet().iterator().next().getValue()));
         }
         return request;
     }
