@@ -25,10 +25,10 @@ account:
 
 # Definition of all available sites
 sites:
-    -   id: noneSite # this is a placeholder, to allow site independent test case configurations.
+    -   id: sOliver # this is a placeholder, to allow site independent test case configurations.
         active: true # in case you want to exclude it from a run 
-        locale: noneSite # this is the language to be used
-        region: noneSite # this is something like country or market, depends what you might need in the test cases to differentiate
+        locale: de-de # this is the language to be used
+        region: EU # this is something like country or market, depends what you might need in the test cases to differentiate
         marketshare: 100 # this defines how many percent of all running test will use this site
         testcases: 
            exclude: 
