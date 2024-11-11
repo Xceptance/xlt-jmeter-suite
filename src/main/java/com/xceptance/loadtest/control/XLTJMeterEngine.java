@@ -1,11 +1,14 @@
 package com.xceptance.loadtest.control;
 
-import com.xceptance.loadtest.data.util.Actions;
-import com.xceptance.loadtest.jmeter.util.AssertionHandler;
-import com.xceptance.loadtest.jmeter.util.HttpRequestHandler;
-import com.xceptance.loadtest.jmeter.util.XLTJMeterUtils;
-import com.xceptance.xlt.api.engine.Session;
+import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Set;
+
 import org.apache.commons.lang3.StringUtils;
+import org.apache.jmeter.config.CSVDataSet;
 import org.apache.jmeter.control.Controller;
 import org.apache.jmeter.control.LoopController;
 import org.apache.jmeter.control.TransactionController;
@@ -23,8 +26,17 @@ import org.apache.jmeter.testbeans.TestBeanHelper;
 import org.apache.jmeter.testelement.TestElement;
 import org.apache.jmeter.testelement.TestIterationListener;
 import org.apache.jmeter.testelement.TestStateListener;
+import org.apache.jmeter.threads.AbstractThreadGroup;
+import org.apache.jmeter.threads.FindTestElementsUpToRootTraverser;
+import org.apache.jmeter.threads.JMeterContext;
+import org.apache.jmeter.threads.JMeterContextService;
+import org.apache.jmeter.threads.JMeterThread;
+import org.apache.jmeter.threads.JMeterVariables;
+import org.apache.jmeter.threads.PostThreadGroup;
+import org.apache.jmeter.threads.SamplePackage;
+import org.apache.jmeter.threads.SetupThreadGroup;
+import org.apache.jmeter.threads.TestCompiler;
 import org.apache.jmeter.threads.ThreadGroup;
-import org.apache.jmeter.threads.*;
 import org.apache.jmeter.util.JMeterUtils;
 import org.apache.jorphan.collections.HashTree;
 import org.apache.jorphan.collections.ListedHashTree;
@@ -33,11 +45,11 @@ import org.apache.jorphan.util.JMeterStopTestException;
 import org.apiguardian.api.API;
 import org.junit.Assert;
 
-import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
+import com.xceptance.loadtest.data.util.Actions;
+import com.xceptance.loadtest.jmeter.util.AssertionHandler;
+import com.xceptance.loadtest.jmeter.util.HttpRequestHandler;
+import com.xceptance.loadtest.jmeter.util.XLTJMeterUtils;
+import com.xceptance.xlt.api.engine.Session;
 
 /**
  * This class is based on {@link StandardJMeterEngine}. Additional it uses parts of the {@link JMeterThread} for the usage in XLT.
@@ -205,18 +217,21 @@ public class XLTJMeterEngine extends StandardJMeterEngine
         SearchByClass<SetupThreadGroup> setupSearcher = new SearchByClass<>(SetupThreadGroup.class);
         SearchByClass<AbstractThreadGroup> searcher = new SearchByClass<>(AbstractThreadGroup.class);
         SearchByClass<PostThreadGroup> postSearcher = new SearchByClass<>(PostThreadGroup.class);
-
+        // explicit search for all CSV data, we need to initialize it since we do not rely on listener for thread interruption
+        SearchByClass<CSVDataSet> fileData = new SearchByClass<>(CSVDataSet.class);
+        
         // read in classes from jmx file
         test.traverse(setupSearcher);
         test.traverse(searcher);
         test.traverse(postSearcher);
+        test.traverse(fileData);
 
         // default methods for JMeter
         TestCompiler.initialize();
         JMeterContextService.clearTotalThreads();
 
         Collection<AbstractThreadGroup> searchResults = searcher.getSearchResults();
-
+        
         // if no thread group is found, no point in continuing
         Assert.assertFalse("No usable requests in xml file found.", searchResults.isEmpty());
 
@@ -233,14 +248,20 @@ public class XLTJMeterEngine extends StandardJMeterEngine
         for(AbstractThreadGroup currentThreadGroup : searchResults)
         {
             mainController = currentThreadGroup;
+            
             String currentThreadGroupName = currentThreadGroup.getName();
             if(StringUtils.isBlank(currentThreadGroupName))
             {
                 currentThreadGroupName = String.format(UNNAMED_THREAD_GROUP + "%d", ++unknownThreadGroupCounter);
             }
-
+            
             ListedHashTree groupTree = (ListedHashTree) searcher.getSubTree(currentThreadGroup);
-
+            
+            // add all CSV files, if there are any, to the group for auto loading via JMeter
+            Set<Object> keySet = groupTree.keySet();
+            HashTree hashTree = groupTree.get(keySet.iterator().next());
+            hashTree.add(fileData.getSearchResults());
+            
             // execute the run
             initRun(context);
             processThreadGroup(context, currentThreadGroupName, groupTree);
@@ -264,12 +285,13 @@ public class XLTJMeterEngine extends StandardJMeterEngine
         // work with the action naming we are going to use
         SearchByClass<TransactionController> transactionControllerSearch = new SearchByClass<>(TransactionController.class);
         threadGroupHashtree.traverse(transactionControllerSearch);
+        
         Collection<TransactionController> allTransactionControllers = transactionControllerSearch.getSearchResults();
         for(TransactionController tC : allTransactionControllers)
         {
             tC.setGenerateParentSample(true);
         }
-
+        
         JMeterContextService.getContext().setSamplingStarted(true);
 
         // init the assertion handling
