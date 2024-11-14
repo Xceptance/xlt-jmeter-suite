@@ -36,7 +36,7 @@ public abstract class JMeterTestCase extends HtmlUnitLoadTestCase
         if ("default".equals(siteId) == false && "noneSite".equals(siteId) == false)
         {
             // we have something non default
-            return MessageFormat.format("{0}_{1}", name, siteId);
+            return MessageFormat.format("{0}", name);
         }
         return name;
     }
