@@ -33,10 +33,10 @@ public abstract class JMeterTestCase extends HtmlUnitLoadTestCase
 
     public static String getSiteSpecificName(final String name, final String siteId)
     {
-        if ("default".equals(siteId) == false && "noneSite".equals(siteId) == false)
+        if ("default".equals(siteId))
         {
             // we have something non default
-            return MessageFormat.format("{0}", name);
+            return MessageFormat.format("{0}_{1}", name, siteId);
         }
         return name;
     }
