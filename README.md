@@ -6,7 +6,6 @@ The JMeter based Performance Test Suite is build on the basic ideas of [Apache J
 ## Requirements
 
 * Java Version 8 or higher
-* Clone the [Posters Advanced Loadtest Suite](https://github.com/Xceptance/posters-advanced-loadtest-suite)
 * Download and Run Apache JMeter
     * [Download](https://jmeter.apache.org/download_jmeter.cgi) Apache JMeter
     * [Install](https://jmeter.apache.org/usermanual/get-started.html#install) Apache JMeter
@@ -25,15 +24,11 @@ The JMeter based Performance Test Suite is build on the basic ideas of [Apache J
 3. Set the output file of the recording should be of type `.jmx`
 4. Expand the `Test Plan` to see its content
     * Add the needed controller and sampler
-    * Optional
-      * _set the number of threads_
-      * _set ramp-up period_
-      * _set loop count_
 5. Run your test plan
 6. See the results under `View Results Tree`
 7. Save your `.jmx` file
-8. Open the JMTeter based Performance Test Suite in your favourite IDEA
-9. Go to `config > data > tests` and see your previous saved file
+8. Open the JMeter based Performance Test Suite in your favourite IDEA
+9. Go to `config > data > tests` to see your previous saved file
 10. Go to `src/main/java/com/xceptance/loadtest/jmeter/tests` and add your test
 ```
 public class YourTestCaseName extends AbstractComponentTest
@@ -46,11 +41,11 @@ public class YourTestCaseName extends AbstractComponentTest
 ```
 11. Add your test case(s) to the `config/testcase-mapping.properties`
 12. Add your test case(s) to the list of active test case(s) `config/test.properties`
-13. Save and comit your changes
-14. Run your test and see the results in the provided result browswer
+13. Save and commit your changes
+14. Run your test and see the results in the provided result browser
 15. Go to the [Xceptance Test Center (XTC)](https://xtc.xceptance.com/)
 16. Setup a new [load test](https://docs.xceptance.com/xtc/loadtesting/)
-17. Start you loadtest
+17. Start your loadtest
 
 ## Supported Functionality
 ### Thread Group
@@ -67,9 +62,6 @@ public class YourTestCaseName extends AbstractComponentTest
 ### Assertions
 * assertion checker from JMeter are implemented and fire events in XLT, additonal we support the continue (only events) and stop function from JMeter (ResultBrowser and errors)
 
-### Performance Comparison
-* Compare standard load test vs. JMeter recorded test (both XLT report in the end)
-
 ### Post-Processors
 * implemented but not all are working at the moment
 
@@ -80,7 +72,7 @@ public class YourTestCaseName extends AbstractComponentTest
 * works with internal counter
 
 ### CSV Data
-* works but the path need adjustement in JMeterGUI
+* works but the path need adjustment in JMeterGUI
 
 ## Not Yet Supported Functionality
 * File Upload
