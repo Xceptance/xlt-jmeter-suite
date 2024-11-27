@@ -6,36 +6,19 @@ public class NamingTest extends AbstractComponentTest
     {
         jmxSource = "/tests/NamingTest.jmx";
 
-        expectedActionNamesRequestMode = new String[]{"RequestA", "UnnamedRequest_1", "UnnamedRequest_2",
+        expectedActionNames = new String[]{"RequestA", "UnnamedRequest_1", "UnnamedRequest_2",
                                                       "RequestB", "UnnamedRequest_3", "UnnamedRequest_4",
                                                       "RequestC", "UnnamedRequest_5", "UnnamedRequest_6",
-                                                      "RequestD", "RequestE", "RequestF", "RequestF", "RequestG",
-                                                      "RequestG", "RequestH", "RequestH", "RequestI", "UnnamedRequest_7",
-                                                      "RequestJ", "UnnamedRequest_8", "RequestK", "RequestL",
-                                                      "UnnamedRequest_9", "RequestA", "UnnamedRequest_10",
-                                                      "UnnamedRequest_11", "RequestB", "UnnamedRequest_12",
-                                                      "UnnamedRequest_13", "RequestC", "UnnamedRequest_14",
-                                                      "UnnamedRequest_15", "RequestD", "RequestE", "RequestF", "RequestF",
-                                                      "RequestG", "RequestG", "RequestH", "RequestH", "RequestI",
-                                                      "UnnamedRequest_16", "RequestJ", "UnnamedRequest_17", "RequestK",
-                                                      "RequestL", "UnnamedRequest_18"};
-
-        expectedActionNamesTransactionMode = new String[]{"ThreadGroup", "TransactionControllerNoParentSample", "UnnamedTransactionController_1",
-                                                          "TransactionControllerWithParentSample", "UnnamedTransactionController_2",
-                                                          "UnnamedTransactionController_3", "TransactionControllerInLoopControllerNoParentSample",
-                                                          "TransactionControllerInLoopControllerWithParentSample", "ParentTransactionControllerNoParentSample",
-                                                          "NestedTransactionControllerNoParentSample", "ParentTransactionControllerWithParentSample",
-                                                          "NestedTransactionControllerWithParentSample", "NestedTransactionControllerWithParentSample",
-                                                          "UnnamedThreadGroup_1", "TransactionControllerNoParentSample", "UnnamedTransactionController_4",
-                                                          "TransactionControllerWithParentSample", "UnnamedTransactionController_5", "UnnamedTransactionController_6",
-                                                          "TransactionControllerInLoopControllerNoParentSample", "TransactionControllerInLoopControllerWithParentSample",
-                                                          "ParentTransactionControllerNoParentSample", "NestedTransactionControllerNoParentSample",
-                                                          "ParentTransactionControllerWithParentSample", "NestedTransactionControllerWithParentSample",
-                                                          "NestedTransactionControllerWithParentSample"};
-
-        useRequestMode = true;
-
-        expectedActionNames = useRequestMode ? expectedActionNamesRequestMode : expectedActionNamesTransactionMode;
+                                                      "TransactionControllerWithParentSample", "UnnamedTransactionController_1", "RequestF", "RequestG", "RequestH",
+                                                      "RequestI", "UnnamedRequest_7", "RequestJ", "UnnamedRequest_8", "ParentTransactionControllerWithParentSample",
+                                                      "NestedTransactionControllerWithParentSample", "NestedTransactionControllerWithParentSample",
+                                                      "UnnamedThreadGroup_1","RequestB",
+                                                      "UnnamedRequest_9", "UnnamedRequest_10", "RequestC",
+                                                      "UnnamedRequest_11","UnnamedRequest_12",
+                                                      "TransactionControllerWithParentSample", "UnnamedTransactionController_2", "RequestF",
+                                                      "RequestG", "RequestH", "RequestI", "UnnamedRequest_13", "RequestJ",
+                                                      "UnnamedRequest_14", "ParentTransactionControllerWithParentSample",
+                                                      "NestedTransactionControllerWithParentSample", "NestedTransactionControllerWithParentSample"};
     }
 
     @Override

@@ -6,15 +6,7 @@ public class NestingsTest extends AbstractComponentTest
     {
         jmxSource = "/tests/Nestings.jmx";
 
-        expectedActionNamesRequestMode = new String[]{"RequestK", "RequestL", "RequestL"};
-
-        expectedActionNamesTransactionMode = new String[]{"ParentTransactionControllerWithNoParentSample",
-                                                          "NestedTransactionControllerWithNoParentSample",
-                                                          "NestedTransactionControllerWithNoParentSample"};
-
-        useRequestMode = false;
-
-        expectedActionNames = useRequestMode ? expectedActionNamesRequestMode : expectedActionNamesTransactionMode;
+        expectedActionNames = new String[]{"RequestK", "RequestL", "NestedTransactionControllerWithNoParentSample"};
     }
 
     @Override
