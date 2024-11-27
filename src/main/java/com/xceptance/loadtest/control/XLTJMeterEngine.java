@@ -4,7 +4,9 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.apache.commons.lang3.StringUtils;
@@ -106,6 +108,8 @@ public class XLTJMeterEngine extends StandardJMeterEngine
     private int unnamedRequestCounter = 0;
 
     private int unnamedTransactionControllerCounter = 0;
+    
+    private Map<String, Boolean> generateParentSampleMap = new HashMap<>();
 
     /**
      * Constructor for setting the request naming. If set to <false> the request naming will be dynamic.
@@ -289,6 +293,7 @@ public class XLTJMeterEngine extends StandardJMeterEngine
         Collection<TransactionController> allTransactionControllers = transactionControllerSearch.getSearchResults();
         for(TransactionController tC : allTransactionControllers)
         {
+            generateParentSampleMap.put(tC.getName(), tC.isGenerateParentSample());
             tC.setGenerateParentSample(true);
         }
         
@@ -331,6 +336,8 @@ public class XLTJMeterEngine extends StandardJMeterEngine
                 sam = mainController.next();
                 if(sam != null)
                 {
+                    // get the new name if we are in a new TransactionController
+                    transactionControllerName = sam.getName();
                     continue;
                 }
 
@@ -340,6 +347,32 @@ public class XLTJMeterEngine extends StandardJMeterEngine
 
             // First check if the action name is derived from the request name. If requests have no name a default name
             // is used
+            
+            // If no request naming is used, check if there is an active transaction controller where we need to
+            // process the children
+            if(isInsideOrDirectTransactionSampler)
+            {
+                if(StringUtils.isBlank(transactionControllerName))
+                {
+                    transactionControllerName = String.format(UNNAMED_TRANSACTION_CONTROLLER + "%d",
+                                                              ++unnamedTransactionControllerCounter);
+                }
+                // Either the TC has a name or we assigned one
+                name = transactionControllerName;
+            }
+            else
+            {
+                // Fallback: there is ALWAYS a thread group with a name (we gave a default one in the caller method
+                // in case it was empty)
+                name = threadGroupName;
+            }
+            
+            // check if the current transaction is marked for request grouping or individual requests and naming
+            if (generateParentSampleMap.containsKey(name))
+            {
+                useRequestNaming = !generateParentSampleMap.get(name);
+            }
+            
             if(useRequestNaming)
             {
                 String requestName = "";
@@ -370,27 +403,6 @@ public class XLTJMeterEngine extends StandardJMeterEngine
                         // in case it was empty)
                         name = threadGroupName;
                     }
-                }
-            }
-            else
-            {
-                // If no request naming is used, check if there is an active transaction controller where we need to
-                // process the children
-                if(isInsideOrDirectTransactionSampler)
-                {
-                    if(StringUtils.isBlank(transactionControllerName))
-                    {
-                        transactionControllerName = String.format(UNNAMED_TRANSACTION_CONTROLLER + "%d",
-                                                                  ++unnamedTransactionControllerCounter);
-                    }
-                    // Either the TC has a name or we assigned one
-                    name = transactionControllerName;
-                }
-                else
-                {
-                    // Fallback: there is ALWAYS a thread group with a name (we gave a default one in the caller method
-                    // in case it was empty)
-                    name = threadGroupName;
                 }
             }
 
