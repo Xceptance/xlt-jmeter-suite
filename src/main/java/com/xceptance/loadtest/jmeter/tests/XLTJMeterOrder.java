@@ -7,6 +7,6 @@ public class XLTJMeterOrder extends AbstractComponentTest
 {
     public XLTJMeterOrder()
     {
-        jmxSource = "/GuestOrder.jmx";
+        jmxSource = "/tests/GuestOrder.jmx";
     } 
 }
