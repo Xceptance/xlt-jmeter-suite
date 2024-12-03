@@ -17,6 +17,7 @@ import org.apache.jmeter.config.Arguments;
 import org.apache.jmeter.config.ConfigTestElement;
 import org.apache.jmeter.protocol.http.control.AuthManager;
 import org.apache.jmeter.protocol.http.control.Authorization;
+import org.apache.jmeter.protocol.http.control.Header;
 import org.apache.jmeter.protocol.http.control.HeaderManager;
 import org.apache.jmeter.protocol.http.parser.BaseParser;
 import org.apache.jmeter.protocol.http.parser.LinkExtractorParseException;
@@ -24,6 +25,7 @@ import org.apache.jmeter.protocol.http.parser.LinkExtractorParser;
 import org.apache.jmeter.protocol.http.sampler.HTTPSampleResult;
 import org.apache.jmeter.protocol.http.sampler.HTTPSamplerProxy;
 import org.apache.jmeter.protocol.http.util.ConversionUtils;
+import org.apache.jmeter.protocol.http.util.HTTPConstantsInterface;
 import org.apache.jmeter.samplers.SampleResult;
 import org.apache.jmeter.testelement.property.CollectionProperty;
 import org.apache.jmeter.testelement.property.JMeterProperty;
@@ -171,7 +173,7 @@ public class HttpRequestHandler
         if (hm != null)
         {
             // add header data
-            addHeaderData(request, hm);
+            addHeaderData(request, hm, sampler);
         }
 
         // add arguments
@@ -480,17 +482,32 @@ public class HttpRequestHandler
      * @param headerData
      * @return
      */
-    private static HttpRequest addHeaderData(HttpRequest request, List<HeaderManager> headerData)
+    private static HttpRequest addHeaderData(HttpRequest request, List<HeaderManager> headerData, HTTPSamplerProxy sampler)
     {
         // transform header keys/values from loaded data to request confirm data
         headerData.forEach(e ->
         {
-            CollectionProperty headers = e.getHeaders();
-            headers.forEach(p ->
+            // in case we have several header manager, add all values
+            for (int index = 0; index < e.size(); index++)
             {
-                // remove name from the combined value attribute
-                request.header(p.getName(), p.getStringValue().replace(p.getName(), ""));
-            });
+                // Multipart handling with additional Content type handling
+                if (HTTPConstantsInterface.HEADER_CONTENT_TYPE.equals(e.get(index).getName()) &&
+                    sampler.getUseMultipart())
+                {
+                    request.header(HTTPConstantsInterface.HEADER_CONTENT_TYPE, HTTPConstantsInterface.MULTIPART_FORM_DATA + "; " + e.get(index).getValue());
+                }
+                else
+                {
+                    // add the header values
+                    request.header(e.get(index).getName(), e.get(index).getValue());
+                }
+            }
+//            CollectionProperty headers = e.getHeaders();
+//            headers.forEach(p ->
+//            {
+//                // remove name from the combined value attribute
+//                request.header(p.getName(), p.getStringValue().replace(p.getName(), ""));
+//            });
         });
         return request;
     }
