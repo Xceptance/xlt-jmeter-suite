@@ -414,8 +414,8 @@ public class HttpRequestHandler
             // see HTTPHC4Impl#getConnectionHeaders
             // see HTTPJavaImpl#getConnectionHeaders
             //': ' is used by JMeter to fill-in requestHeaders, see getConnectionHeaders
-            final String userAgentPrefix = USER_AGENT + ": ";
-            String userAgentHdr = res.substring(index + userAgentPrefix.length(), res.indexOf('\n',
+            final String userAgentPrefix = USER_AGENT;
+            String userAgentHdr = res.substring(index + userAgentPrefix.length(), res.indexOf(
                                                                                               // '\n' is used by JMeter to fill-in requestHeaders, see getConnectionHeaders
                                                                                               index +
                                                                                               userAgentPrefix.length() +
