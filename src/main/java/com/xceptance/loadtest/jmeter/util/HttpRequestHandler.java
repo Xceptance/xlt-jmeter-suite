@@ -17,7 +17,6 @@ import org.apache.jmeter.config.Arguments;
 import org.apache.jmeter.config.ConfigTestElement;
 import org.apache.jmeter.protocol.http.control.AuthManager;
 import org.apache.jmeter.protocol.http.control.Authorization;
-import org.apache.jmeter.protocol.http.control.Header;
 import org.apache.jmeter.protocol.http.control.HeaderManager;
 import org.apache.jmeter.protocol.http.parser.BaseParser;
 import org.apache.jmeter.protocol.http.parser.LinkExtractorParseException;
@@ -27,7 +26,6 @@ import org.apache.jmeter.protocol.http.sampler.HTTPSamplerProxy;
 import org.apache.jmeter.protocol.http.util.ConversionUtils;
 import org.apache.jmeter.protocol.http.util.HTTPConstantsInterface;
 import org.apache.jmeter.samplers.SampleResult;
-import org.apache.jmeter.testelement.property.CollectionProperty;
 import org.apache.jmeter.testelement.property.JMeterProperty;
 import org.apache.jmeter.threads.SamplePackage;
 import org.apache.jmeter.util.JMeterUtils;
@@ -37,6 +35,8 @@ import org.apache.oro.text.regex.Pattern;
 import org.apache.oro.text.regex.Perl5Matcher;
 import org.htmlunit.HttpMethod;
 
+import com.xceptance.xlt.api.engine.NetworkData;
+import com.xceptance.xlt.api.engine.Session;
 import com.xceptance.xlt.engine.httprequest.HttpRequest;
 import com.xceptance.xlt.engine.httprequest.HttpResponse;
 
@@ -181,9 +181,15 @@ public class HttpRequestHandler
         // fire the request
         HttpResponse response = request.fire();
 
+        Map<String, String> additionalHeaders = response.getWebResponse().getWebRequest().getAdditionalHeaders();
+        
         // set the XLT response into JMeter
         resultPack.setResponseData(response.getContentAsString(), null);
         resultPack.setResponseHeaders(response.getHeaders().toString());
+        // get the network data, XLT, and retrieve the last request header data, important for JMeter assertion handling
+        List<NetworkData> data = Session.getCurrent().getNetworkDataManager().getData();
+//        resultPack.setRequestHeaders(data.get(data.size() - 1).getAdditionalRequestHeaders().toString());
+        resultPack.setRequestHeaders(additionalHeaders.toString());
         resultPack.setResponseCode(String.valueOf(response.getStatusCode())); // set status code for assertion check
         resultPack.setResponseMessage(response.getStatusMessage());
         resultPack.setSuccessful(true); // set the request to success -> otherwise the assertion checker will fail
