@@ -255,6 +255,12 @@ def path = FileServer.getFileServer().getBaseDir();
 def separator = File.separator;
 
 var file = new File(path + separator + &apos;terms.txt&apos;);
+
+if (file.length() == 0)
+{
+	file = new File(path + separator + &apos;config&apos; + separator + &apos;data&apos; + separator + &apos;tests&apos; + separator + &apos;terms.txt&apos;);
+}
+
 List lines = file.readLines(); 
 int random = new Random().nextInt(lines.size()); 
 String randomLine = lines.get(random); 
@@ -262,7 +268,7 @@ vars.put(&quot;searchPhrase&quot;, randomLine);</stringProp>
           <stringProp name="scriptLanguage">groovy</stringProp>
         </JSR223Sampler>
         <hashTree/>
-        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Search">
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Search" enabled="true">
           <stringProp name="HTTPSampler.path">/search?searchText=${searchPhrase}</stringProp>
           <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
           <stringProp name="HTTPSampler.method">GET</stringProp>
@@ -273,7 +279,7 @@ vars.put(&quot;searchPhrase&quot;, randomLine);</stringProp>
           </elementProp>
         </HTTPSamplerProxy>
         <hashTree>
-          <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="Response Assertion">
+          <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="Response Assertion" enabled="true">
             <collectionProp name="Asserion.test_strings">
               <stringProp name="1401491109">${searchPhrase}</stringProp>
             </collectionProp>
