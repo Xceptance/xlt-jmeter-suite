@@ -3,9 +3,11 @@
 ## Overview
 The JMeter based Performance Test Suite is build on the basic ideas of [Apache JMeter](https://jmeter.apache.org/index.html) but with reworks in many areas to make it compatible with [XLT](https://www.xceptance.com/de/xlt/) and [XTC](https://xtc.xceptance.com/).
 
+Bottom line, you record, edit, and maintain your tests in Jmeter, but you will use XLT to run and evaluate your tests. 
+
 ## Requirements
 
-* Java Version 8 or higher
+* Java Version 17 or higher
 * Download and Run Apache JMeter
     * [Download](https://jmeter.apache.org/download_jmeter.cgi) Apache JMeter
     * [Install](https://jmeter.apache.org/usermanual/get-started.html#install) Apache JMeter
@@ -19,17 +21,17 @@ The JMeter based Performance Test Suite is build on the basic ideas of [Apache J
 
 
 ## How To Use
-1. Clone the JMeter based Performance Test Suite on your local machine
+1. Clone this test suite
 2. Build a [test plan](https://jmeter.apache.org/usermanual/get-started.html#test_plan_building)
-3. Set the output file of the recording should be of type `.jmx`
+3. Output file of the recording should be `.jmx`
 4. Expand the `Test Plan` to see its content
     * Add the needed controller and sampler
 5. Run your test plan
 6. See the results under `View Results Tree`
-7. Save your `.jmx` file
-8. Open the JMeter based Performance Test Suite in your favourite IDEA
-9. Go to `config > data > tests` to see your previous saved file
-10. Go to `src/main/java/com/xceptance/loadtest/jmeter/tests` and add your test
+7. Save your `.jmx` file to this directory `<testsuite>/config/data/tests`
+8. Open this test suite in your beloved Java IDE
+9. Go to `config/data/tests` to see your previous saved file
+10. Go to `src/main/java/com/xceptance/loadtest/jmeter/tests` and add your test    
 ```
 public class YourTestCaseName extends AbstractComponentTest
 {
