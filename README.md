@@ -47,6 +47,14 @@ public class YourTestCaseName extends AbstractComponentTest
 16. Setup a new [load test](https://docs.xceptance.com/xtc/loadtesting/)
 17. Start your loadtest
 
+## JMeter Dependencies
+JMeter dependencies are upgrade.properties, saveservice.properties and jmeter.properties are taken from default JMeter setup and are needed for the engine. In case there are adjusted values simply, add the files under the created site. At the moment default is used for reference.
+
+## Naming and Best Practice
+
+Best practice is to always give meaningful names to thread groups, transactions and requests. These names are used for the report and it is recommended to identify the correct requests in the report. If there are no names given, the engine will create a default name for identification.
+For reference in XLT each .jmx file is considered a single test case, therefore create the test cases in different .jmx files. All Transaction Controller in the current file are later listed as Actions in the report and all request under the given Transaction Controller, if the Generate parent sample option is selected. If the option is disabled all request will be listed individual.
+
 ## Supported Functionality
 ### Thread Group
 
