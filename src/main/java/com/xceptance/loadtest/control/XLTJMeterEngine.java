@@ -512,7 +512,15 @@ public class XLTJMeterEngine extends StandardJMeterEngine
 
                         if(useRequestNaming)
                         {
-                            break;
+                            //check if we have any request related sample
+                            if (sam instanceof HTTPSamplerProxy)
+                            {
+                                break;
+                            }
+                            else
+                            {
+                                // nothing to do we process any not transaction related jmeter action
+                            }
                         }
 
                         // Check if we are still below the current parent for naming (transaction controller or thread group)
