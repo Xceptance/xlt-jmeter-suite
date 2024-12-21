@@ -1,4 +1,4 @@
-# JMeter based Performance Test Suite
+# XLT Test Suite with JMeter Support 
 
 ## Overview
 The JMeter based Performance Test Suite is build on the basic ideas of [Apache JMeter](https://jmeter.apache.org/index.html) but with reworks in many areas to make it compatible with [XLT](https://www.xceptance.com/de/xlt/) and [XTC](https://xtc.xceptance.com/).
