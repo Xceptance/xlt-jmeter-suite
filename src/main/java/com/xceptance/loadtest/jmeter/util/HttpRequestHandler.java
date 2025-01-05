@@ -1,3 +1,18 @@
+/*
+ * Copyright (c) 2005-2025 Xceptance Software Technologies GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.xceptance.loadtest.jmeter.util;
 
 import java.net.MalformedURLException;
@@ -78,7 +93,7 @@ public class HttpRequestHandler
 
     /**
      * Identify the parser for the current class and content type.
-     * 
+     *
      * @param contentType
      * @param className
      */
@@ -89,12 +104,12 @@ public class HttpRequestHandler
 
     /**
      * Create the {@link HTTPSampleResult} and set the URL and method for request.
-     * 
+     *
      * @param url
      * @param method
      * @return HTTPSampleResult
      */
-    public static HTTPSampleResult createSampleResult(URL url, String method) 
+    public static HTTPSampleResult createSampleResult(URL url, String method)
     {
         HTTPSampleResult res = new HTTPSampleResult();
         res.setHTTPMethod(method);
@@ -105,9 +120,9 @@ public class HttpRequestHandler
 
     /**
      * Uses the data from the {@link SamplePackage} and build the XLT confirm request, in terms of header and authentification. Only request will be handled here
-     * for all other types of Sampler, the native JMeter Sampler will be used. After firing the request data is also set in a JMeter understandable way 
-     * and additional resources will be loaded, if so configured for the test. 
-     * 
+     * for all other types of Sampler, the native JMeter Sampler will be used. After firing the request data is also set in a JMeter understandable way
+     * and additional resources will be loaded, if so configured for the test.
+     *
      * @param pack
      * @param requestName
      * @return SampleResult
@@ -181,7 +196,7 @@ public class HttpRequestHandler
 
         // get the current request header
         Map<String, String> additionalHeaders = response.getWebResponse().getWebRequest().getAdditionalHeaders();
-        
+
         // set the XLT response into JMeter
         resultPack.setResponseData(response.getContentAsString(), null);
         resultPack.setResponseHeaders(response.getHeaders().toString());
@@ -361,13 +376,13 @@ public class HttpRequestHandler
 
     /**
      * Generate the Predicate for regex matching.
-     * 
+     *
      * @param regex
      * @param explanation
      * @param defaultAnswer
      * @return Predicate
      */
-    private static Predicate<URL> generateMatcherPredicate(String regex, String explanation, boolean defaultAnswer) 
+    private static Predicate<URL> generateMatcherPredicate(String regex, String explanation, boolean defaultAnswer)
     {
         if (StringUtils.isEmpty(regex))
         {
@@ -400,7 +415,7 @@ public class HttpRequestHandler
 
     /**
      * Return the user agent.
-     * 
+     *
      * @param sampleResult
      * @return String user agent
      */
@@ -429,7 +444,7 @@ public class HttpRequestHandler
 
     /**
      * If username and password are set for basic authorization, Base64 encoded user header is set.
-     * 
+     *
      * @param request
      * @param username
      * @param password
@@ -446,10 +461,10 @@ public class HttpRequestHandler
             request.header("Authorization", "Basic " + userPassBase64);
         }
     }
-    
+
     /**
      * Add all arguments to the request. Arguments can be found in the used jmx file. Arguments are automaticaly organized into post and url parameter.
-     * 
+     *
      * @param request
      * @param requestData
      * @return HttpRequest
@@ -475,10 +490,10 @@ public class HttpRequestHandler
         }
         return request;
     }
-    
+
     /**
      * Add all global and request specific header data. Depending on the order of request the header values can already contain data.
-     * 
+     *
      * @param request
      * @param headerData
      * @return

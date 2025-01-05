@@ -15,12 +15,24 @@
  */
 package com.xceptance.loadtest.test;
 
+import java.util.List;
+
 import com.xceptance.loadtest.control.JMeterTestCase;
 
-public class DownloadAllEmbedded extends JMeterTestCase
+public class EZTransactionControllerUnnamed extends JMeterTestCase
 {
-    public DownloadAllEmbedded()
+    public EZTransactionControllerUnnamed()
     {
-        super("DownloadAllEmbedded.jmx", true);
+        super("EZTransaction.jmx", false);
+    }
+
+    @Override
+    public void test() throws Throwable
+    {
+        super.test();
+
+        validateActions(List.of("VisitTransactionController",
+                "UnnamedTransactionController_1",
+                "SecondTransactionController"));
     }
 }

@@ -17,10 +17,10 @@ package com.xceptance.loadtest.test;
 
 import com.xceptance.loadtest.control.JMeterTestCase;
 
-public class DownloadAllEmbedded extends JMeterTestCase
+public class PetStoreEndToEnd extends JMeterTestCase
 {
-    public DownloadAllEmbedded()
+    public PetStoreEndToEnd()
     {
-        super("DownloadAllEmbedded.jmx", true);
+        super("PetStore-End-to-End-Flow.jmx");
     }
 }

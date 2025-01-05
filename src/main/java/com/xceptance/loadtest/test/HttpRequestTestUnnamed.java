@@ -15,12 +15,21 @@
  */
 package com.xceptance.loadtest.test;
 
+import java.util.List;
+
 import com.xceptance.loadtest.control.JMeterTestCase;
 
-public class DownloadAllEmbedded extends JMeterTestCase
+public class HttpRequestTestUnnamed extends JMeterTestCase
 {
-    public DownloadAllEmbedded()
+    public HttpRequestTestUnnamed()
     {
-        super("DownloadAllEmbedded.jmx", true);
+        super("HttpRequest.jmx", false);
+    }
+
+    @Override
+    public void test() throws Throwable
+    {
+        super.test();
+        validateActions(List.of("ThreadGroup1", "ThreadGroup2", "UnnamedThreadGroup_1", "UnnamedThreadGroup_2"));
     }
 }
