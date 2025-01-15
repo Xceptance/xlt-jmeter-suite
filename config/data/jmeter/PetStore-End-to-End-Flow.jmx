@@ -6,6 +6,8 @@
       <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="User Defined Variables">
         <collectionProp name="Arguments.arguments"/>
       </elementProp>
+      <boolProp name="TestPlan.functional_mode">false</boolProp>
+      <boolProp name="TestPlan.serialize_threadgroups">false</boolProp>
     </TestPlan>
     <hashTree>
       <CookieManager guiclass="CookiePanel" testclass="CookieManager" testname="HTTP Cookie Manager">
@@ -14,13 +16,13 @@
         <boolProp name="CookieManager.controlledByThreadGroup">false</boolProp>
       </CookieManager>
       <hashTree/>
-      <CacheManager guiclass="CacheManagerGui" testclass="CacheManager" testname="HTTP Cache Manager">
+      <CacheManager guiclass="CacheManagerGui" testclass="CacheManager" testname="HTTP Cache Manager" enabled="true">
         <boolProp name="clearEachIteration">false</boolProp>
         <boolProp name="useExpires">true</boolProp>
         <boolProp name="CacheManager.controlledByThread">false</boolProp>
       </CacheManager>
       <hashTree/>
-      <ConfigTestElement guiclass="HttpDefaultsGui" testclass="ConfigTestElement" testname="HTTP Request Defaults">
+      <ConfigTestElement guiclass="HttpDefaultsGui" testclass="ConfigTestElement" testname="HTTP Request Defaults" enabled="true">
         <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="User Defined Variables">
           <collectionProp name="Arguments.arguments"/>
         </elementProp>
@@ -40,7 +42,7 @@
         </elementProp>
       </ThreadGroup>
       <hashTree>
-        <Arguments guiclass="ArgumentsPanel" testclass="Arguments" testname="User Defined Variables">
+        <Arguments guiclass="ArgumentsPanel" testclass="Arguments" testname="User Defined Variables" enabled="true">
           <collectionProp name="Arguments.arguments">
             <elementProp name="cartQuantity" elementType="Argument">
               <stringProp name="Argument.name">cartQuantity</stringProp>
@@ -50,7 +52,7 @@
           </collectionProp>
         </Arguments>
         <hashTree/>
-        <CSVDataSet guiclass="TestBeanGUI" testclass="CSVDataSet" testname="CSV Data Set Config">
+        <CSVDataSet guiclass="TestBeanGUI" testclass="CSVDataSet" testname="CSV Data Set Config" enabled="true">
           <stringProp name="filename">data/products.csv</stringProp>
           <stringProp name="fileEncoding"></stringProp>
           <stringProp name="variableNames">P_PRODUCTS</stringProp>
@@ -590,7 +592,7 @@
           <boolProp name="TransactionController.includeTimers">false</boolProp>
         </TransactionController>
         <hashTree>
-          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="UpdateCart" enabled="true">
+          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="UpdateCart">
             <stringProp name="HTTPSampler.domain">petstore.octoperf.com</stringProp>
             <stringProp name="HTTPSampler.port">443</stringProp>
             <stringProp name="HTTPSampler.protocol">https</stringProp>
@@ -634,7 +636,7 @@
             </elementProp>
           </HTTPSamplerProxy>
           <hashTree>
-            <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="HTTP Header Manager">
+            <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="HTTP Header Manager" enabled="true">
               <collectionProp name="HeaderManager.headers">
                 <elementProp name="Referer" elementType="Header">
                   <stringProp name="Header.name">Referer</stringProp>
@@ -679,15 +681,24 @@
               <stringProp name="cacheKey">true</stringProp>
               <stringProp name="filename"></stringProp>
               <stringProp name="parameters">${cartQuantity} ${extract_ListPrice}</stringProp>
-              <stringProp name="script">String quantity=args[0];
+              <stringProp name="script">
+import java.text.DecimalFormat
+import java.text.DecimalFormatSymbols
+
+String quantity=args[0];
 String price=args[1];
 int q = Integer.parseInt(quantity)
 float p = Float.parseFloat(price)
 float total
 total = q * p
-System.out.println(String.format(&quot;%,.2f&quot;, total))
-log.info(&apos;Total is &apos; + String.format(&quot;%,.2f&quot;, total))
-vars.put(&quot;total&quot;,String.format(&quot;%,.2f&quot;, total))</stringProp>
+
+DecimalFormatSymbols decimalSymbols = DecimalFormatSymbols.getInstance()
+decimalSymbols.setDecimalSeparator(&apos;.&apos; as char)
+String formattedTotal = new DecimalFormat(&quot;0.00&quot;, decimalSymbols).format(total)
+
+System.out.println(formattedTotal)
+log.info(&apos;Total is &apos; + formattedTotal)
+vars.put(&quot;total&quot;, formattedTotal)</stringProp>
               <stringProp name="scriptLanguage">groovy</stringProp>
             </JSR223PostProcessor>
             <hashTree/>
@@ -709,12 +720,12 @@ vars.put(&quot;total&quot;,String.format(&quot;%,.2f&quot;, total))</stringProp>
           <boolProp name="IfController.useExpression">true</boolProp>
         </IfController>
         <hashTree>
-          <TransactionController guiclass="TransactionControllerGui" testclass="TransactionController" testname="T60_ProceedtoCheckout">
+          <TransactionController guiclass="TransactionControllerGui" testclass="TransactionController" testname="T60_ProceedtoCheckout" enabled="true">
             <boolProp name="TransactionController.parent">true</boolProp>
             <boolProp name="TransactionController.includeTimers">false</boolProp>
           </TransactionController>
           <hashTree>
-            <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="ProceedtoCheckout">
+            <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="ProceedtoCheckout" enabled="true">
               <stringProp name="HTTPSampler.domain">petstore.octoperf.com</stringProp>
               <stringProp name="HTTPSampler.port">443</stringProp>
               <stringProp name="HTTPSampler.protocol">https</stringProp>
@@ -776,7 +787,7 @@ vars.put(&quot;total&quot;,String.format(&quot;%,.2f&quot;, total))</stringProp>
             <boolProp name="TransactionController.includeTimers">false</boolProp>
           </TransactionController>
           <hashTree>
-            <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="ClickonContinue">
+            <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="ClickonContinue" enabled="true">
               <stringProp name="HTTPSampler.domain">petstore.octoperf.com</stringProp>
               <stringProp name="HTTPSampler.port">443</stringProp>
               <stringProp name="HTTPSampler.protocol">https</stringProp>
@@ -890,7 +901,7 @@ vars.put(&quot;total&quot;,String.format(&quot;%,.2f&quot;, total))</stringProp>
               </elementProp>
             </HTTPSamplerProxy>
             <hashTree>
-              <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="HTTP Header Manager">
+              <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="HTTP Header Manager" enabled="true">
                 <collectionProp name="HeaderManager.headers">
                   <elementProp name="Referer" elementType="Header">
                     <stringProp name="Header.name">Referer</stringProp>
@@ -933,7 +944,7 @@ vars.put(&quot;total&quot;,String.format(&quot;%,.2f&quot;, total))</stringProp>
               <hashTree/>
             </hashTree>
           </hashTree>
-          <TransactionController guiclass="TransactionControllerGui" testclass="TransactionController" testname="T80_ConfirmOrder">
+          <TransactionController guiclass="TransactionControllerGui" testclass="TransactionController" testname="T80_ConfirmOrder" enabled="true">
             <boolProp name="TransactionController.parent">true</boolProp>
             <boolProp name="TransactionController.includeTimers">false</boolProp>
           </TransactionController>
@@ -1013,7 +1024,7 @@ vars.put(&quot;total&quot;,String.format(&quot;%,.2f&quot;, total))</stringProp>
               <hashTree/>
             </hashTree>
           </hashTree>
-          <JSR223Sampler guiclass="TestBeanGUI" testclass="JSR223Sampler" testname="Order Validation">
+          <JSR223Sampler guiclass="TestBeanGUI" testclass="JSR223Sampler" testname="Order Validation" enabled="true">
             <stringProp name="scriptLanguage">groovy</stringProp>
             <stringProp name="parameters">${extract_ordernumber}</stringProp>
             <stringProp name="filename"></stringProp>
@@ -1024,18 +1035,18 @@ assert ordernumber.matches(&quot;([0-9]{7})&quot;)
 </stringProp>
           </JSR223Sampler>
           <hashTree/>
-          <IfController guiclass="IfControllerPanel" testclass="IfController" testname="If Controller">
+          <IfController guiclass="IfControllerPanel" testclass="IfController" testname="If Controller" enabled="true">
             <stringProp name="IfController.condition">${JMeterThread.last_sample_ok}</stringProp>
             <boolProp name="IfController.evaluateAll">false</boolProp>
             <boolProp name="IfController.useExpression">true</boolProp>
           </IfController>
           <hashTree>
-            <TransactionController guiclass="TransactionControllerGui" testclass="TransactionController" testname="T90_GotoAccount">
+            <TransactionController guiclass="TransactionControllerGui" testclass="TransactionController" testname="T90_GotoAccount" enabled="true">
               <boolProp name="TransactionController.parent">true</boolProp>
               <boolProp name="TransactionController.includeTimers">false</boolProp>
             </TransactionController>
             <hashTree>
-              <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="GoToMyAccount">
+              <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="GoToMyAccount" enabled="true">
                 <stringProp name="HTTPSampler.domain">petstore.octoperf.com</stringProp>
                 <stringProp name="HTTPSampler.port">443</stringProp>
                 <stringProp name="HTTPSampler.protocol">https</stringProp>
@@ -1092,7 +1103,7 @@ assert ordernumber.matches(&quot;([0-9]{7})&quot;)
                 <hashTree/>
               </hashTree>
             </hashTree>
-            <TransactionController guiclass="TransactionControllerGui" testclass="TransactionController" testname="T100_MyOrders">
+            <TransactionController guiclass="TransactionControllerGui" testclass="TransactionController" testname="T100_MyOrders" enabled="true">
               <boolProp name="TransactionController.parent">true</boolProp>
               <boolProp name="TransactionController.includeTimers">false</boolProp>
             </TransactionController>
