@@ -23,7 +23,7 @@ public class HttpRequestTestNamed extends JMeterTestCase
 {
     public HttpRequestTestNamed()
     {
-        super("HttpRequest.jmx", true);
+        super("HttpRequest.jmx");
     }
 
     @Override
