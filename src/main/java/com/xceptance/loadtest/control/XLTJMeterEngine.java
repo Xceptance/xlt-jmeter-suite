@@ -141,21 +141,10 @@ public class XLTJMeterEngine extends StandardJMeterEngine
 	}
 
 	/**
-	 * Constructor for setting the request naming. If set to <false> the request naming will be dynamic.
-	 *
-	 * @param useRequestNaming
-	 */
-	public XLTJMeterEngine(boolean useRequestNaming)
-	{
-		this.useRequestNaming = useRequestNaming;
-	}
-
-	/**
 	 * Default Constructor.
 	 */
 	public XLTJMeterEngine()
 	{
-		this.useRequestNaming = true;
 	}
 
 	/**
@@ -209,6 +198,9 @@ public class XLTJMeterEngine extends StandardJMeterEngine
 	{
 		super.configure(testTree);
 		test = testTree;
+		// enable dynamic request naming, in case there is no name, if there is no transaction controller create an
+		// action with the same name as the request
+		useRequestNaming = true; 
 		compiler = new TestCompiler(testTree);
 		threadVars = new JMeterVariables();
 	}

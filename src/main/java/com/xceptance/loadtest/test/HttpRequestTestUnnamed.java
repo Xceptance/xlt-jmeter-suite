@@ -23,13 +23,16 @@ public class HttpRequestTestUnnamed extends JMeterTestCase
 {
     public HttpRequestTestUnnamed()
     {
-        super("HttpRequest.jmx", false);
+        super("HttpRequest.jmx");
     }
 
     @Override
     public void test() throws Throwable
     {
         super.test();
-        validateActions(List.of("ThreadGroup1", "ThreadGroup2", "UnnamedThreadGroup_1", "UnnamedThreadGroup_2"));
+        validateActions(List.of("VisitRequest", "ServiceRequest", "UnnamedRequest_1", 
+                                "UnnamedRequest_2", "VisitRequestUnnamedThreadGroup",
+                                "ServiceRequestUnnamedThreadGroup", "UnnamedRequest_3",
+                                "UnnamedRequest_4"));
     }
 }

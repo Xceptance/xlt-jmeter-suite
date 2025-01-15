@@ -54,9 +54,8 @@ public abstract class JMeterTestCase extends HtmlUnitLoadTestCase
 	 * relative to this one directory.
 	 *
 	 * @param path the path relative to testsuite/config/data/jmeter
-	 * @param applyRequestNaming shall names for request be automatically generated
 	 */
-	public JMeterTestCase(final String scriptFile, final boolean applyRequestNaming)
+	public JMeterTestCase(final String scriptFile)
 	{
 		super();
 
@@ -64,7 +63,7 @@ public abstract class JMeterTestCase extends HtmlUnitLoadTestCase
 		Context.attach(new Context(getClass().getName(), getSite()));
 
 		// get us the engine, so the base file server is up too
-		this.engine = new XLTJMeterEngine(applyRequestNaming);
+		this.engine = new XLTJMeterEngine();
 
 		// we already defined the base path and this is where the file is
 		// Jmeter cannot handle data the way XLT can, so we have for
@@ -72,20 +71,6 @@ public abstract class JMeterTestCase extends HtmlUnitLoadTestCase
 		// support properties with context, but let's keep things simple for
 		// the moment
 		this.jmxFile = FileServer.getFileServer().getResolvedFile(scriptFile);
-	}
-
-	/**
-	 * Constructor
-	 *
-	 * The path to the file relativ to config/data, likely something like
-	 * jmeter/anyfile.jmx. The data for that JMX file will then be relative to
-	 * this location. This data is not validated before the file is loaded.
-	 *
-	 * @param path the path relative to testsuite/config
-	 */
-	public JMeterTestCase(final String path)
-	{
-		this(path, false);
 	}
 
 	/**

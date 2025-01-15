@@ -21,6 +21,6 @@ public class RandomOrderTest extends JMeterTestCase
 {
     public RandomOrderTest()
     {
-    	super("RandomOrder.jmx", true);
+    	super("RandomOrder.jmx");
     }
 }

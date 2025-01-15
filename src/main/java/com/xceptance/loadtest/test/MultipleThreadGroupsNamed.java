@@ -23,7 +23,7 @@ public class MultipleThreadGroupsNamed extends JMeterTestCase
 {
     public MultipleThreadGroupsNamed()
     {
-    	super("MultipleThreadGroups.jmx", true);
+    	super("MultipleThreadGroups.jmx");
     }
 
     @Override

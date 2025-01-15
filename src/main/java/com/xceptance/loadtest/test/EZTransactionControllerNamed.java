@@ -23,7 +23,7 @@ public class EZTransactionControllerNamed extends JMeterTestCase
 {
     public EZTransactionControllerNamed()
     {
-        super("EZTransaction.jmx", false);
+        super("EZTransaction.jmx");
     }
 
     @Override
@@ -31,6 +31,6 @@ public class EZTransactionControllerNamed extends JMeterTestCase
     {
         super.test();
 
-        validateActions(List.of("First", "First", "Second"));
+        validateActions(List.of("VisitTransactionController", "UnnamedTransactionController_1", "SecondTransactionController"));
     }
 }

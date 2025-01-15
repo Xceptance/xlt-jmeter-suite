@@ -21,6 +21,6 @@ public class DownloadAllEmbedded extends JMeterTestCase
 {
     public DownloadAllEmbedded()
     {
-        super("DownloadAllEmbedded.jmx", true);
+        super("DownloadAllEmbedded.jmx");
     }
 }
