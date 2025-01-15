@@ -62,7 +62,6 @@ import org.apache.jorphan.collections.ListedHashTree;
 import org.apache.jorphan.collections.SearchByClass;
 import org.apache.jorphan.util.JMeterStopTestException;
 import org.apiguardian.api.API;
-import org.hamcrest.core.IsInstanceOf;
 import org.junit.Assert;
 
 import com.xceptance.loadtest.data.util.Actions;
@@ -313,15 +312,6 @@ public class XLTJMeterEngine extends StandardJMeterEngine
 		{
 			mainController = currentThreadGroup;
 			
-			// resolve loops for the thread group, if there are any, set it to 1
-			if (mainController instanceof ThreadGroup)
-			{
-			    ThreadGroup threadGroup = (ThreadGroup) mainController;
-			    LoopController loopController = new LoopController();
-			    loopController.setLoops(1);
-			    threadGroup.setSamplerController(loopController);
-			}
-			
 			String currentThreadGroupName = currentThreadGroup.getName();
 			if(StringUtils.isBlank(currentThreadGroupName))
 			{
@@ -334,6 +324,14 @@ public class XLTJMeterEngine extends StandardJMeterEngine
 			Set<Object> keySet = groupTree.keySet();
 			HashTree hashTree = groupTree.get(keySet.iterator().next());
 			hashTree.add(fileData.getSearchResults());
+			
+	         // resolve loops for the thread group, if there are any, set it to 1
+            AbstractThreadGroup mainController2 = (AbstractThreadGroup) mainController;
+            Controller samplerController = mainController2.getSamplerController();
+            if (samplerController instanceof LoopController)
+            {
+                ((LoopController)samplerController).setLoops(1);
+            }
 
 			// execute the run
 			initRun(context);
@@ -898,7 +896,6 @@ public class XLTJMeterEngine extends StandardJMeterEngine
 		XLTJMeterUtils.setLastSampleOk(threadVars, true);
 		threadContext.setEngine(this);
 		
-
 		// variables are set at this point
 		test.traverse(compiler);
 
