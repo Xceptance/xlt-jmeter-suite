@@ -29,7 +29,7 @@
         <stringProp name="HTTPSampler.implementation"></stringProp>
       </ConfigTestElement>
       <hashTree/>
-      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Thread Group">
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Thread Group" enabled="true">
         <stringProp name="ThreadGroup.num_threads">${__P(TOTAL_THREADS,1)}</stringProp>
         <stringProp name="ThreadGroup.ramp_time">${__P(RAMP_UP,10)}</stringProp>
         <stringProp name="ThreadGroup.duration">${__P(TEST_DURATION,10)}</stringProp>
@@ -677,7 +677,7 @@
               </collectionProp>
             </HeaderManager>
             <hashTree/>
-            <JSR223PostProcessor guiclass="TestBeanGUI" testclass="JSR223PostProcessor" testname="JSR223 PostProcessor">
+            <JSR223PostProcessor guiclass="TestBeanGUI" testclass="JSR223PostProcessor" testname="JSR223 PostProcessor" enabled="true">
               <stringProp name="cacheKey">true</stringProp>
               <stringProp name="filename"></stringProp>
               <stringProp name="parameters">${cartQuantity} ${extract_ListPrice}</stringProp>
@@ -699,6 +699,7 @@ String formattedTotal = new DecimalFormat(&quot;0.00&quot;, decimalSymbols).form
 System.out.println(formattedTotal)
 log.info(&apos;Total is &apos; + formattedTotal)
 vars.put(&quot;total&quot;, formattedTotal)</stringProp>
+
               <stringProp name="scriptLanguage">groovy</stringProp>
             </JSR223PostProcessor>
             <hashTree/>
@@ -714,7 +715,7 @@ vars.put(&quot;total&quot;, formattedTotal)</stringProp>
             <hashTree/>
           </hashTree>
         </hashTree>
-        <IfController guiclass="IfControllerPanel" testclass="IfController" testname="If Controller">
+        <IfController guiclass="IfControllerPanel" testclass="IfController" testname="If Controller" enabled="true">
           <stringProp name="IfController.condition">${__groovy(${extract_total} == ${total},)}</stringProp>
           <boolProp name="IfController.evaluateAll">false</boolProp>
           <boolProp name="IfController.useExpression">true</boolProp>
@@ -1031,7 +1032,7 @@ vars.put(&quot;total&quot;, formattedTotal)</stringProp>
             <stringProp name="cacheKey">true</stringProp>
             <stringProp name="script">def ordernumber = args[0]
 log.info(&apos;Order number is &apos; + ordernumber)
-assert ordernumber.matches(&quot;([0-9]{7})&quot;)
+assert ordernumber.matches(&quot;([0-9]{4})&quot;)
 </stringProp>
           </JSR223Sampler>
           <hashTree/>
@@ -1281,7 +1282,7 @@ assert ordernumber.matches(&quot;([0-9]{7})&quot;)
             </hashTree>
           </hashTree>
         </hashTree>
-        <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="View Results Tree">
+        <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="View Results Tree" enabled="true">
           <boolProp name="ResultCollector.error_logging">false</boolProp>
           <objProp>
             <name>saveConfig</name>
