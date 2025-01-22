@@ -13,14 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.xceptance.loadtest.jmeter.tests;
+package com.xceptance.loadtest.test;
 
 import com.xceptance.loadtest.control.JMeterTestCase;
 
-public class XLTJMeterSearch extends JMeterTestCase
+public class PetStoreEndToEnd extends JMeterTestCase
 {
-	public XLTJMeterSearch()
-	{
-		super("searchFlow.jmx");
-	}
+    public PetStoreEndToEnd()
+    {
+        super("PetStore-End-to-End-Flow.jmx");
+    }
 }

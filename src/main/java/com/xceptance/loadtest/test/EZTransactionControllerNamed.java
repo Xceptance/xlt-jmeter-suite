@@ -13,14 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.xceptance.loadtest.jmeter.tests;
+package com.xceptance.loadtest.test;
+
+import java.util.List;
 
 import com.xceptance.loadtest.control.JMeterTestCase;
 
-public class XLTJMeterSearch extends JMeterTestCase
+public class EZTransactionControllerNamed extends JMeterTestCase
 {
-	public XLTJMeterSearch()
-	{
-		super("searchFlow.jmx");
-	}
+    public EZTransactionControllerNamed()
+    {
+        super("EZTransaction.jmx");
+    }
+
+    @Override
+    public void test() throws Throwable
+    {
+        super.test();
+
+        validateActions(List.of("VisitTransactionController", "UnnamedTransactionController_1", "SecondTransactionController"));
+    }
 }

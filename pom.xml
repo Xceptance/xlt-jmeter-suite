@@ -12,6 +12,7 @@
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<java.version>17</java.version>
+		<argLine>-Duser.language=de -Duser.region=DE</argLine>
 	</properties>
 
 	<build>
@@ -33,12 +34,12 @@
 				<artifactId>maven-javadoc-plugin</artifactId>
 				<version>3.4.1</version>
 			</plugin>
-			
+
 			<plugin>
-                <groupId>com.lazerycode.jmeter</groupId>
-                <artifactId>jmeter-maven-plugin</artifactId>
-                <version>2.9.0</version>
-            </plugin>
+				<groupId>com.lazerycode.jmeter</groupId>
+				<artifactId>jmeter-maven-plugin</artifactId>
+				<version>2.9.0</version>
+			</plugin>
 
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
@@ -47,7 +48,7 @@
 			</plugin>
 		</plugins>
 	</build>
-	
+
     <repositories>
         <repository>
             <id>central</id>
@@ -65,7 +66,7 @@
     </repositories>
 
 	<dependencies>
-        
+
         <dependency>
             <groupId>org.apache.jmeter</groupId>
             <artifactId>ApacheJMeter_java</artifactId>
@@ -77,19 +78,19 @@
             <artifactId>ApacheJMeter_http</artifactId>
             <version>5.6.3</version>
         </dependency>
-        
+
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
             <version>3.14.0</version>
         </dependency>
-        
+
         <dependency>
             <groupId>commons-codec</groupId>
             <artifactId>commons-codec</artifactId>
             <version>1.16.1</version>
         </dependency>
-        
+
         <dependency>
             <groupId>org.apache.httpcomponents</groupId>
             <artifactId>httpcore</artifactId>
@@ -99,10 +100,10 @@
 		<dependency>
 			<groupId>com.xceptance</groupId>
 			<artifactId>xlt</artifactId>
-			<version>8.4.0</version>
+			<version>8.5.0</version>
 			<scope>provided</scope>
 		</dependency>
-		
+
 		<dependency>
 			<groupId>com.jayway.jsonpath</groupId>
 			<artifactId>json-path</artifactId>
@@ -120,13 +121,13 @@
 			<artifactId>snakeyaml</artifactId>
 			<version>1.26</version>
 		</dependency>
-		
+
         <dependency>
             <groupId>com.xceptance</groupId>
             <artifactId>testsuite-foundation</artifactId>
             <version>0.0.6</version>
         </dependency>
-        
+
         <dependency>
             <groupId>com.xceptance</groupId>
             <artifactId>testsuite-addons</artifactId>
