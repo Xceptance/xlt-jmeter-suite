@@ -3,10 +3,9 @@
 ## Overview
 The JMeter based Performance Test Suite is build on the basic ideas of [Apache JMeter](https://jmeter.apache.org/index.html) but with reworks in many areas to make it compatible with [XLT](https://www.xceptance.com/de/xlt/) and [XTC](https://xtc.xceptance.com/).
 
-Bottom line, you record, edit, and maintain your tests in Jmeter, but you will use XLT to run and evaluate your tests. 
+Bottom line, you record, edit, and maintain your tests in Jmeter, but you will use XLT to run and evaluate your tests. This gives you excellent debuggability because you can utilize the resultbrowser feature to see nicely what has been executed, requested, and fetched.
 
 ## Requirements
-
 * Java Version 17 or higher
 * Download and Run Apache JMeter
     * [Download](https://jmeter.apache.org/download_jmeter.cgi) Apache JMeter
@@ -53,13 +52,11 @@ public class YourTestCaseName extends AbstractComponentTest
 JMeter dependencies are upgrade.properties, saveservice.properties and jmeter.properties are taken from default JMeter setup and are needed for the engine. In case there are adjusted values simply, add the files under the created site. At the moment default is used for reference.
 
 ## Naming and Best Practice
-
 Best practice is to always give meaningful names to thread groups, transactions and requests. These names are used for the report and it is recommended to identify the correct requests in the report. If there are no names given, the engine will create a default name for identification.
 For reference in XLT each .jmx file is considered a single test case, therefore create the test cases in different .jmx files. All Transaction Controller in the current file are later listed as Actions in the report and all request under the given Transaction Controller, if the Generate parent sample option is selected. If the option is disabled all request will be listed individual.
 
 ## Supported Functionality
 ### Thread Group
-
 * grouping different samplers below thread group
 * XLT thread management instead of using JMeter
 
@@ -82,8 +79,11 @@ For reference in XLT each .jmx file is considered a single test case, therefore 
 * works with internal counter
 
 ### CSV Data
-* works but the path need adjustment in JMeterGUI
+* Works, but the path must be next to or below the location of the JMX file, otherwise the test suite upload with XLT won't work
 
-## Not Yet Supported Functionality
+## Not Yet Supported
 * File Upload
 * XPath2 Assertions
+
+## Limitations
+By design, the load test config is not read from the JMeter file. This has to be done the classical way.
