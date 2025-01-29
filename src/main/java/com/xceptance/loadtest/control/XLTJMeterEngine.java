@@ -789,7 +789,7 @@ public class XLTJMeterEngine extends StandardJMeterEngine
 
 		for(Controller c : controllers)
 		{
-			if(c instanceof LoopController && ((LoopController) c).getLoops() == -1)
+			if(c instanceof LoopController && ((LoopController) c).getLoops() == LoopController.INFINITE_LOOP_COUNT)
 			{
 				Assert.fail("Infinite loops are currently not supported by XLT");
 			}
