@@ -88,3 +88,5 @@ For reference in XLT each .jmx file is considered a single test case, therefore 
 
 ## Limitations
 By design, the load test config is not read from the JMeter file. This has to be done the classical way.
+
+It is strictly recommended to only have one active thread group per scenario (`.jmx` file). Since this will be directly visible in the report later. Multiple thread groups, in one `.jmx` file, will be listed as action at the moment.
