@@ -28,16 +28,16 @@ Bottom line, you record, edit, and maintain your tests in Jmeter, but you will u
     * Add the needed controller and sampler
 5. Run your test plan
 6. See the results under `View Results Tree`
-7. Save your `.jmx` file to this directory `<testsuite>/config/data/tests`
+7. Save your `.jmx` file to this directory `<testsuite>/config/data/jmeter`
 8. Open this test suite in your beloved Java IDE
-9. Go to `config/data/tests` to see your previous saved file
+9. Go to `config/data/jmeter` to see your previous saved file
 10. Go to `src/main/java/com/xceptance/loadtest/jmeter/tests` and add your test    
 ```
-public class YourTestCaseName extends AbstractComponentTest
+public class YourTestCaseName extends JMeterTestCase
 {
     public YourTestCaseName()
     {
-      jmxSource ="/tests/yourTestFile.jmx";
+      jmxSource ="yourTestFile.jmx";
     }
 }
 ```
@@ -62,6 +62,7 @@ For reference in XLT each .jmx file is considered a single test case, therefore 
 
 * grouping different samplers below thread group
 * XLT thread management instead of using JMeter
+* all thread groups in one`.jmx` file are executed one after the other
 
 ### HTTP Request
 * can fire simple requests
@@ -70,7 +71,7 @@ For reference in XLT each .jmx file is considered a single test case, therefore 
 * implemented, as it is in JMeter
 
 ### Assertions
-* assertion checker from JMeter are implemented and fire events in XLT, additonal we support the continue (only events) and stop function from JMeter (ResultBrowser and errors)
+* assertion checker from JMeter are implemented and fire events in XLT, additional we support the continue (only events) and stop function from JMeter (ResultBrowser and errors)
 
 ### Post-Processors
 * implemented but not all are working at the moment
