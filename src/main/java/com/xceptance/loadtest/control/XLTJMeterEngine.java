@@ -334,7 +334,7 @@ public class XLTJMeterEngine extends StandardJMeterEngine
 	}
 
 	/**
-	 * Process the thread group, which is found in tesplan.
+	 * Process the thread group, which is found in test plan.
 	 *
 	 * @param context
 	 * @param threadGroupName
