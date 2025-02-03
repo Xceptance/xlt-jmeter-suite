@@ -1,52 +1,37 @@
 # XLT Test Suite with JMeter Support 
 
 ## Overview
-The JMeter based Performance Test Suite is build on the basic ideas of [Apache JMeter](https://jmeter.apache.org/index.html) but with reworks in many areas to make it compatible with [XLT](https://www.xceptance.com/de/xlt/) and [XTC](https://xtc.xceptance.com/).
+The JMeter based Performance Test Suite is build on the basic ideas of [Apache JMeter](https://jmeter.apache.org/index.html) but with reworks in many areas to make it compatible with [XLT](https://www.xceptance.com/de/xlt/).
 
-Bottom line, you record, edit, and maintain your tests in Jmeter, but you will use XLT to run and evaluate your tests. This gives you excellent debuggability because you can utilize the resultbrowser feature to see nicely what has been executed, requested, and fetched.
+Bottom line, you record, edit, and maintain your tests in Jmeter, but you will use XLT to run and evaluate your tests. This gives you excellent debuggability because you can utilize the XLT features to see nicely what has been executed, requested, and fetched.
 
 ## Requirements
 * Java Version 17 or higher
-* Download and Run Apache JMeter
-    * [Download](https://jmeter.apache.org/download_jmeter.cgi) Apache JMeter
-    * [Install](https://jmeter.apache.org/usermanual/get-started.html#install) Apache JMeter
-    * [Run](https://jmeter.apache.org/usermanual/get-started.html#running) Apache JMeter
-
-* Configure proxy access in the web browser
-    * [Google Chrome](https://oxylabs.io/resources/integrations/chrome)
-    * [Mozilla Firefox](https://smartproxy.com/configuration/how-to-setup-proxy-on-firefox-browser)
-    * [Safari](https://smartproxy.com/configuration/how-to-setup-proxy-on-safari-browser)
-* Enable the proxy
-
+* An existing `.jmx` file for test execution. This can be created with [JMeter](https://jmeter.apache.org/).
 
 ## How To Use
 1. Clone this test suite
-2. Build a [test plan](https://jmeter.apache.org/usermanual/get-started.html#test_plan_building)
-3. Output file of the recording should be `.jmx`
-4. Expand the `Test Plan` to see its content
-    * Add the needed controller and sampler
-5. Run your test plan
-6. See the results under `View Results Tree`
-7. Save your `.jmx` file to this directory `<testsuite>/config/data/jmeter`
-8. Open this test suite in your beloved Java IDE
-9. Go to `config/data/jmeter` to see your previous saved file
-10. Go to `src/main/java/com/xceptance/loadtest/jmeter/tests` and add your test    
+2. Build a [test plan](https://jmeter.apache.org/usermanual/get-started.html#test_plan_building) or use an existing `.jmx` file
+3. Save your `.jmx` file to this directory `<testsuite>/config/data/jmeter`
+4. Open this test suite in your preferred Java IDE
+5. Go to `config/data/jmeter` to see your previous saved file
+6. Go to `src/main/java/com/xceptance/loadtest/jmeter/tests` and add your test, there are already some example test, for reference   
 ```
 public class YourTestCaseName extends JMeterTestCase
 {
     public YourTestCaseName()
     {
-      jmxSource ="yourTestFile.jmx";
+      super("yourTestFile.jmx");
     }
 }
 ```
-11. Add your test case(s) to the `config/testcase-mapping.properties`
-12. Add your test case(s) to the list of active test case(s) `config/test.properties`
-13. Save and commit your changes
-14. Run your test and see the results in the provided result browser
-15. Go to the [Xceptance Test Center (XTC)](https://xtc.xceptance.com/)
-16. Setup a new [load test](https://docs.xceptance.com/xtc/loadtesting/)
-17. Start your loadtest
+7. Add your test case(s) to the [test case mapping](https://docs.xceptance.com/xlt/load-testing/manual/480-test-suite-configuration/#test-class-mapping)
+8. Add your test case(s) to the list of active test case(s) in the [test configuration](https://docs.xceptance.com/xlt/load-testing/manual/480-test-suite-configuration/#load-test-profile-configuration)
+9. Save and commit your changes
+10. Run your test and see the results in the provided result browser
+11. Go to the [Xceptance Test Center (XTC)](https://xtc.xceptance.com/)
+12. Setup a new [load test](https://docs.xceptance.com/xtc/loadtesting/)
+13. Start your loadtest
 
 ## JMeter Dependencies
 JMeter dependencies are upgrade.properties, saveservice.properties and jmeter.properties are taken from default JMeter setup and are needed for the engine. In case there are adjusted values simply, add the files under the created site. At the moment default is used for reference.
@@ -58,11 +43,11 @@ For reference in XLT each .jmx file is considered a single test case, therefore 
 ## Supported Functionality
 ### Thread Group
 * grouping different samplers below thread group
-* XLT thread management instead of using JMeter
-* all thread groups in one`.jmx` file are executed one after the other
+* XLT thread management instead of using JMeter. This means that infinite or loops, ramp up and users is managed by XTC and via properties.
+* all thread groups in one `.jmx` file are executed one after the other, this is not recommended
 
 ### HTTP Request
-* can fire simple requests
+* can fire simple HTTP requests and HTTP multipart
 
 ### Pre-Processors
 * implemented, as it is in JMeter
@@ -87,6 +72,6 @@ For reference in XLT each .jmx file is considered a single test case, therefore 
 * XPath2 Assertions
 
 ## Limitations
-By design, the load test config is not read from the JMeter file. This has to be done the classical way.
+By design, the load test config is not read from the JMeter file. This has to be done the classical way via property file. Think times and load will be controlled by XTC.
 
-It is strictly recommended to only have one active thread group per scenario (`.jmx` file). Since this will be directly visible in the report later. Multiple thread groups, in one `.jmx` file, will be listed as action at the moment.
+It is strictly recommended to only have one active thread group per scenario (`.jmx` file). Since this will be directly visible in the report later. Multiple thread groups, in one `.jmx` file, will be listed as actions.
