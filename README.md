@@ -38,7 +38,7 @@ JMeter dependencies are upgrade.properties, saveservice.properties and jmeter.pr
 
 ## Naming and Best Practice
 Best practice is to always give meaningful names to thread groups, transactions and requests. These names are used for the report and it is recommended to identify the correct requests in the report. If there are no names given, the engine will create a default name for identification.
-For reference in XLT each .jmx file is considered a single test case, therefore create the test cases in different .jmx files. All Transaction Controller in the current file are later listed as Actions in the report and all request under the given Transaction Controller, if the Generate parent sample option is selected. If the option is disabled all request will be listed individual.
+For reference in XLT each `.jmx` file is considered a single test case, therefore create the test cases in different `.jmx` files. All Transaction Controller in the current file are later listed as Actions in the report and all request under the given Transaction Controller, if the Generate parent sample option is selected. If the option is disabled all request will be listed individual.
 
 ## Supported Functionality
 ### Thread Group
@@ -56,7 +56,7 @@ For reference in XLT each .jmx file is considered a single test case, therefore 
 * assertion checker from JMeter are implemented and fire events in XLT, additional we support the continue (only events) and stop function from JMeter (ResultBrowser and errors)
 
 ### Post-Processors
-* implemented but not all are working at the moment
+* implemented, as it is in JMeter
 
 ### Loop Controller
 * works with internal counter as designed
@@ -65,13 +65,13 @@ For reference in XLT each .jmx file is considered a single test case, therefore 
 * works with internal counter
 
 ### CSV Data
-* Works, but the path must be next to or below the location of the JMX file, otherwise the test suite upload with XLT won't work
+* Works, the `.csv` file(s) need to be placed at the follwoing location `<testsuite>/config/data/jmeter/data`.
 
 ## Not Yet Supported
 * File Upload
 * XPath2 Assertions
 
 ## Limitations
-By design, the load test config is not read from the JMeter file. This has to be done the classical way via property file. Think times and load will be controlled by XTC.
+By design, the load test config is not read from the JMeter file. This has to be done the classical way via [property file](https://docs.xceptance.com/xlt/load-testing/manual/470-load-configuration). Think times and load will be controlled by XTC.
 
 It is strictly recommended to only have one active thread group per scenario (`.jmx` file). Since this will be directly visible in the report later. Multiple thread groups, in one `.jmx` file, will be listed as actions.
