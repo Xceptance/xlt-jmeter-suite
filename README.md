@@ -1,13 +1,14 @@
 # XLT Test Suite with JMeter Support 
 
 ## Overview
-The JMeter based Performance Test Suite is build on the basic ideas of [Apache JMeter](https://jmeter.apache.org/index.html) but with reworks in many areas to make it compatible with [XLT](https://www.xceptance.com/de/xlt/).
+The JMeter based Performance Test Suite is built on the foundational concepts of [Apache JMeter](https://jmeter.apache.org/index.html). However, it incorporates significant modifications in various areas to ensure seamless compatibility with [XLT](https://www.xceptance.com/de/xlt/).
 
-Bottom line, you record, edit, and maintain your tests in Jmeter, but you will use XLT to run and evaluate your tests. This gives you excellent debuggability because you can utilize the XLT features to see nicely what has been executed, requested, and fetched.
+Essentially, you will continue to use JMeter for recording, editing, and maintaining your tests. The key difference lies in the execution and evaluation phase, which will be handled by XLT. This integration provides enhanced debugging capabilities, as you can leverage XLT's features to gain clear insights into the executed actions, requests, and responses.
 
 ## Requirements
 * Java Version 17 or higher
 * An existing `.jmx` file for test execution. This can be created with [JMeter](https://jmeter.apache.org/).
+* There are several `.jmx` example files for usage at `<testsuite>\config\data\jmeter`
 
 ## How To Use
 1. Clone this test suite
@@ -27,9 +28,9 @@ public class YourTestCaseName extends JMeterTestCase
 ```
 7. Add your test case(s) to the [test case mapping](https://docs.xceptance.com/xlt/load-testing/manual/480-test-suite-configuration/#test-class-mapping)
 8. Add your test case(s) to the list of active test case(s) in the [test configuration](https://docs.xceptance.com/xlt/load-testing/manual/480-test-suite-configuration/#load-test-profile-configuration)
-9. Save and commit your changes
-10. Run your test and see the results in the provided result browser
-11. Go to the [Xceptance Test Center (XTC)](https://xtc.xceptance.com/)
+9. Save and Run your test and then see browser results, which are located at `<testsuite>\results`
+10. Then commit your changes to your current repository
+11. Go to the [Xceptance Test Center (XTC)](https://xtc.xceptance.com/), in case you have questions about XTC, please see the [documentation](https://docs.xceptance.com/xtc/basics/)
 12. Setup a new [load test](https://docs.xceptance.com/xtc/loadtesting/)
 13. Start your loadtest
 
