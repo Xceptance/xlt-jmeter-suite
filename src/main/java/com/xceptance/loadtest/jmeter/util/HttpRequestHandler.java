@@ -22,9 +22,11 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 import java.util.regex.PatternSyntaxException;
+import java.util.stream.Stream;
 
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang3.StringUtils;
@@ -50,6 +52,7 @@ import org.apache.oro.text.regex.Pattern;
 import org.apache.oro.text.regex.Perl5Matcher;
 import org.htmlunit.HttpMethod;
 
+import com.xceptance.loadtest.data.util.Context;
 import com.xceptance.xlt.engine.httprequest.HttpRequest;
 import com.xceptance.xlt.engine.httprequest.HttpResponse;
 
@@ -429,11 +432,15 @@ public class HttpRequestHandler
             // see HTTPHC4Impl#getConnectionHeaders
             // see HTTPJavaImpl#getConnectionHeaders
             //': ' is used by JMeter to fill-in requestHeaders, see getConnectionHeaders
-            final String userAgentPrefix = USER_AGENT;
-            String userAgentHdr = res.substring(index + userAgentPrefix.length(), res.indexOf(index +
-                                                                                              userAgentPrefix.length() +
-                                                                                              1));
-            return userAgentHdr.trim();
+            Optional<String> first = Stream.of(res.split(",")).filter(p -> p.contains(USER_AGENT)).findFirst();
+            
+            if (first.isPresent())
+            {
+                return first.get();
+            }
+            
+            // take the set user agent as fallback
+            return Context.get().configuration.userAgent;
         }
         else
         {
