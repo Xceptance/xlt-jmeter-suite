@@ -240,7 +240,7 @@
             <hashTree/>
           </hashTree>
         </hashTree>
-        <JSR223Sampler guiclass="TestBeanGUI" testclass="JSR223Sampler" testname="Get random search term" enabled="true">
+        <JSR223Sampler guiclass="TestBeanGUI" testclass="JSR223Sampler" testname="Get random search term">
           <stringProp name="cacheKey">true</stringProp>
           <stringProp name="filename"></stringProp>
           <stringProp name="parameters"></stringProp>
@@ -256,7 +256,7 @@ var file = new File(path + separator + &apos;terms.txt&apos;);
 
 if (file.length() == 0)
 {
-	file = new File(path + separator + &apos;config&apos; + separator + &apos;data&apos; + separator + &apos;tests&apos; + separator + &apos;terms.txt&apos;);
+	file = new File(path + separator + &apos;data&apos; + separator + &apos;terms.txt&apos;);
 }
 
 List lines = file.readLines(); 
@@ -266,7 +266,7 @@ vars.put(&quot;searchPhrase&quot;, randomLine);</stringProp>
           <stringProp name="scriptLanguage">groovy</stringProp>
         </JSR223Sampler>
         <hashTree/>
-        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Search">
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Search" enabled="true">
           <stringProp name="HTTPSampler.path">/search?searchText=${searchPhrase}</stringProp>
           <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
           <stringProp name="HTTPSampler.method">GET</stringProp>
