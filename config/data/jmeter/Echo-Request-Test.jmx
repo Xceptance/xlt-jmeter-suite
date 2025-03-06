@@ -177,7 +177,7 @@
         </ResultCollector>
         <hashTree/>
       </hashTree>
-      <OpenModelThreadGroup guiclass="OpenModelThreadGroupGui" testclass="OpenModelThreadGroup" testname="PerfEcoOpenGroup" enabled="false">
+      <OpenModelThreadGroup guiclass="OpenModelThreadGroupGui" testclass="OpenModelThreadGroup" testname="PerfEcoOpenGroup">
         <stringProp name="OpenModelThreadGroup.schedule">rate(0/min) random_arrivals(5 min) rate(10/min) random_arrivals(5 min)</stringProp>
         <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
         <elementProp name="ThreadGroup.main_controller" elementType="OpenModelThreadGroupController"/>

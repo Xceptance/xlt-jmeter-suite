@@ -356,11 +356,11 @@ public class XLTJMeterEngine extends StandardJMeterEngine
             generateParentSampleMap.put(tC.getName(), tC.isGenerateParentSample());
 			tC.setGenerateParentSample(true);
 		}
-
+		
 		JMeterContextService.getContext().setSamplingStarted(true);
 
 		// init the assertion handling
-		assertionHandler = new AssertionHandler((ThreadGroup) mainController);
+		assertionHandler = new AssertionHandler((AbstractThreadGroup) mainController);
 
 		// Get the first item in the thread group
 		sam = mainController.next();
