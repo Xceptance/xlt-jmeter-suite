@@ -27,6 +27,7 @@ import java.util.Set;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.jmeter.config.CSVDataSet;
+import org.apache.jmeter.config.ConfigElement;
 import org.apache.jmeter.control.Controller;
 import org.apache.jmeter.control.LoopController;
 import org.apache.jmeter.control.TransactionController;
@@ -272,14 +273,14 @@ public class XLTJMeterEngine extends StandardJMeterEngine
 		SearchByClass<SetupThreadGroup> setupSearcher = new SearchByClass<>(SetupThreadGroup.class);
 		SearchByClass<AbstractThreadGroup> searcher = new SearchByClass<>(AbstractThreadGroup.class);
 		SearchByClass<PostThreadGroup> postSearcher = new SearchByClass<>(PostThreadGroup.class);
-		// explicit search for all CSV data, we need to initialize it since we do not rely on listener for thread interruption
-		SearchByClass<CSVDataSet> fileData = new SearchByClass<>(CSVDataSet.class);
+		// explicit config element lookup, in case it is not in a thread group
+		SearchByClass<ConfigElement> configFile = new SearchByClass<>(ConfigElement.class);
 
 		// read in classes from jmx file
 		test.traverse(setupSearcher);
 		test.traverse(searcher);
 		test.traverse(postSearcher);
-		test.traverse(fileData);
+		test.traverse(configFile);
 
 		// default methods for JMeter
 		TestCompiler.initialize();
@@ -315,7 +316,7 @@ public class XLTJMeterEngine extends StandardJMeterEngine
 			// add all CSV files, if there are any, to the group for auto loading via JMeter
 			Set<Object> keySet = groupTree.keySet();
 			HashTree hashTree = groupTree.get(keySet.iterator().next());
-			hashTree.add(fileData.getSearchResults());
+			hashTree.add(configFile.getSearchResults());
 			
 	         // resolve loops for the thread group, if there are any, set it to 1
             AbstractThreadGroup loopCheck = (AbstractThreadGroup) mainController;
