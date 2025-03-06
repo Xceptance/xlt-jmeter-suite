@@ -61,7 +61,7 @@
           </elementProp>
         </HTTPSamplerProxy>
         <hashTree>
-          <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="Response Assertion" enabled="true">
+          <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="Response Assertion">
             <collectionProp name="Asserion.test_strings">
               <stringProp name="49586">200</stringProp>
             </collectionProp>
@@ -75,9 +75,22 @@
             <stringProp name="cacheKey">true</stringProp>
             <stringProp name="filename"></stringProp>
             <stringProp name="parameters"></stringProp>
-            <stringProp name="script">import org.apache.commons.io.FileUtils; 
+            <stringProp name="script">import org.apache.jmeter.services.FileServer;
+ 
+//get current jmeter script&amp;apos;s directory
+def path = FileServer.getFileServer().getBaseDir();
+ 
+//get the separator
+def separator = File.separator;
 
-List lines = FileUtils.readLines(new File(&quot;/Users/fabianheydrich/Development/Projects/jmeter/xlt-jmeter-extension/config/data/tests/terms.txt&quot;), &quot;UTF-8&quot;); 
+var file = new File(path + separator + &apos;terms.txt&apos;);
+
+if (file.length() == 0)
+{
+	file = new File(path + separator + &apos;data&apos; + separator + &apos;terms.txt&apos;);
+}
+
+List lines = file.readLines(); 
 int random = new Random().nextInt(lines.size()); 
 String randomLine = lines.get(random); 
 vars.put(&quot;randomLine&quot;, randomLine);</stringProp>

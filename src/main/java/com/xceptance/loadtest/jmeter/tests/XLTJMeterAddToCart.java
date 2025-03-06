@@ -19,7 +19,6 @@ import com.xceptance.loadtest.control.JMeterTestCase;
 
 public class XLTJMeterAddToCart extends JMeterTestCase
 {
-	// relative to config/data/jmeter
     public XLTJMeterAddToCart()
     {
         super("addToCart.jmx");
