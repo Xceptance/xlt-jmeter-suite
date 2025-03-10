@@ -173,12 +173,12 @@
               <connectTime>true</connectTime>
             </value>
           </objProp>
-          <stringProp name="filename">/home/daniel/Downloads/apache-jmeter-5.6.3/bin/aggregate-echo-test.csv</stringProp>
+          <stringProp name="filename">C:\Data\JMETER\report\aggregate-echo-test.csv</stringProp>
         </ResultCollector>
         <hashTree/>
       </hashTree>
       <OpenModelThreadGroup guiclass="OpenModelThreadGroupGui" testclass="OpenModelThreadGroup" testname="PerfEcoOpenGroup">
-        <stringProp name="OpenModelThreadGroup.schedule">rate(0/min) random_arrivals(5 min) rate(10/min) random_arrivals(5 min)</stringProp>
+        <stringProp name="OpenModelThreadGroup.schedule">rate(0/min) random_arrivals(5 min) rate(100/min) random_arrivals(30 min)</stringProp>
         <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
         <elementProp name="ThreadGroup.main_controller" elementType="OpenModelThreadGroupController"/>
       </OpenModelThreadGroup>
@@ -246,7 +246,7 @@
           <stringProp name="filename"></stringProp>
         </ResultCollector>
         <hashTree/>
-        <ResultCollector guiclass="SummaryReport" testclass="ResultCollector" testname="Summary Report" enabled="true">
+        <ResultCollector guiclass="SummaryReport" testclass="ResultCollector" testname="Summary Report">
           <boolProp name="ResultCollector.error_logging">false</boolProp>
           <objProp>
             <name>saveConfig</name>
@@ -283,7 +283,7 @@
           <stringProp name="filename"></stringProp>
         </ResultCollector>
         <hashTree/>
-        <ResultCollector guiclass="StatVisualizer" testclass="ResultCollector" testname="Aggregate Report" enabled="true">
+        <ResultCollector guiclass="StatVisualizer" testclass="ResultCollector" testname="Aggregate Report">
           <boolProp name="ResultCollector.error_logging">false</boolProp>
           <objProp>
             <name>saveConfig</name>
@@ -317,7 +317,7 @@
               <connectTime>true</connectTime>
             </value>
           </objProp>
-          <stringProp name="filename">/home/daniel/Downloads/apache-jmeter-5.6.3/bin/aggregate-echo-test-open-group.csv</stringProp>
+          <stringProp name="filename">C:\Data\JMETER\report\aggregate-echo-test-open-group.csv</stringProp>
         </ResultCollector>
         <hashTree/>
       </hashTree>
