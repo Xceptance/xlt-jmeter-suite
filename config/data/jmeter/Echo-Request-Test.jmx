@@ -10,7 +10,7 @@
       <CSVDataSet guiclass="TestBeanGUI" testclass="CSVDataSet" testname="English-Word-List">
         <stringProp name="delimiter">,</stringProp>
         <stringProp name="fileEncoding"></stringProp>
-        <stringProp name="filename">C:/Data/Repos/xlt-jmeter-extension/config/data/jmeter/data/echo-test.csv</stringProp>
+        <stringProp name="filename">config/data/jmeter/data/echo-test.csv</stringProp>
         <boolProp name="ignoreFirstLine">false</boolProp>
         <boolProp name="quotedData">false</boolProp>
         <boolProp name="recycle">true</boolProp>
@@ -28,7 +28,7 @@
         <stringProp name="variableName">randomNumber</stringProp>
       </RandomVariableConfig>
       <hashTree/>
-      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="PerfEco">
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="PerfEco" enabled="false">
         <intProp name="ThreadGroup.num_threads">50</intProp>
         <intProp name="ThreadGroup.ramp_time">300</intProp>
         <boolProp name="ThreadGroup.same_user_on_next_iteration">false</boolProp>
