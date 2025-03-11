@@ -66,7 +66,7 @@ For reference in XLT each `.jmx` file is considered a single test case, therefor
 * works with internal counter
 
 ### CSV Data
-* Works, the `.csv` file(s) need to be placed at the follwoing location `<testsuite>/config/data/jmeter/data`. If there are issues with reading the file, there is always the fallback with dynamic path resolution. Place the file at the same folder as the `.jmx` and use the dynamic path resolution from [JMeter](https://jmeter.apache.org/usermanual/component_reference.html#CSV_Data_Set_Config)
+* Works, the `.csv` file(s) need to be placed at the following location `<testsuite>/config/data/jmeter/data`. If there are issues with reading the file, there is always the fallback with dynamic path resolution. Place the file at the same folder as the `.jmx` and use the dynamic path resolution from [JMeter](https://jmeter.apache.org/usermanual/component_reference.html#CSV_Data_Set_Config)
 
 ## Not Yet Supported
 * File Upload
