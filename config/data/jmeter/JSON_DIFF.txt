@@ -1,0 +1,197 @@
+{
+  "users": [
+    {
+      "userId": "usr-12345",
+      "username": "randomUser1",
+      "email": "user1@example.com",
+      "firstName": "John",
+      "lastName": "Doe",
+      "age": 30,
+      "isActive": true,
+      "address": {
+        "street": "123 Main St",
+        "city": "Anytown",
+        "zip": "12345",
+        "country": "USA"
+      },
+      "orders": [
+        {
+          "orderId": "ord-67890",
+          "orderDate": "2023-10-26T10:00:00Z",
+          "items": [
+            {
+              "itemId": "itm-111",
+              "itemName": "Product A",
+              "quantity": 2,
+              "price": 25.99
+            },
+            {
+              "itemId": "itm-222",
+              "itemName": "Product B",
+              "quantity": 1,
+              "price": 49.99
+            }
+          ],
+          "total": 101.97
+        },
+        {
+          "orderId": "ord-67891",
+          "orderDate": "2023-11-01T14:30:00Z",
+          "items": [
+            {
+              "itemId": "itm-333",
+              "itemName": "Product C",
+              "quantity": 3,
+              "price": 10.50
+            }
+          ],
+          "total": 31.50
+        }
+      ]
+    },
+    {
+      "userId": "usr-67890",
+      "username": "anotherUser2",
+      "email": "user2@example.org",
+      "firstName": "Jane",
+      "lastName": "Smith",
+      "age": 25,
+      "isActive": false,
+      "address": {
+        "street": "456 Oak Ave",
+        "city": "Springfield",
+        "zip": "54321",
+        "country": "Canada"
+      },
+      "orders": [
+        {
+          "orderId": "ord-12345",
+          "orderDate": "2023-11-15T09:15:00Z",
+          "items": [
+            {
+              "itemId": "itm-444",
+              "itemName": "Product D",
+              "quantity": 1,
+              "price": 75.00
+            }
+          ],
+          "total": 75.00
+        }
+      ]
+    },
+    {
+      "userId": "usr-11223",
+      "username": "testUser3",
+      "email": "test3@domain.net",
+      "firstName": "David",
+      "lastName": "Lee",
+      "age": 42,
+      "isActive": true,
+      "address": {
+        "street": "789 Pine Ln",
+        "city": "Riverside",
+        "zip": "98765",
+        "country": "UK"
+      },
+      "orders": []
+    },
+    {
+      "userId": "usr-44556",
+      "username": "dataUser4",
+      "email": "data4@web.io",
+      "firstName": "Emily",
+      "lastName": "Garcia",
+      "age": 28,
+      "isActive": true,
+      "address": {
+        "street": "101 Elm Rd",
+        "city": "Hillcrest",
+        "zip": "65432",
+        "country": "Australia"
+      },
+      "orders": [
+        {
+          "orderId": "ord-98765",
+          "orderDate": "2023-12-01T12:00:00Z",
+          "items": [
+            {
+              "itemId": "itm-555",
+              "itemName": "Product E",
+              "quantity": 4,
+              "price": 15.00
+            },
+            {
+              "itemId": "itm-666",
+              "itemName": "Product F",
+              "quantity": 2,
+              "price": 30.00
+            }
+
+          ],
+          "total": 120.00
+        }
+      ]
+    },
+    {
+      "userId": "usr-77889",
+      "username": "sampleUser5",
+      "email": "sample5@info.co",
+      "firstName": "Michael",
+      "lastName": "Chen",
+      "age": 35,
+      "isActive": false,
+      "address": {
+        "street": "222 Cedar Ave",
+        "city": "Lakeview",
+        "zip": "34567",
+        "country": "Germany"
+      },
+      "orders": []
+    }
+  ],
+  "products": [
+    {
+      "productId": "prd-1001",
+      "productName": "Product A",
+      "category": "Electronics",
+      "price": 25.99,
+      "stock": 100
+    },
+    {
+      "productId": "prd-1002",
+      "productName": "Product B",
+      "category": "Clothing",
+      "price": 49.99,
+      "stock": 50
+    },
+    {
+      "productId": "prd-1003",
+      "productName": "Product C",
+      "category": "Books",
+      "price": 10.50,
+      "stock": 200
+    },
+        {
+      "productId": "prd-1004",
+      "productName": "Product D",
+      "category": "Home",
+      "price": 75.00,
+      "stock": 30
+    },
+        {
+      "productId": "prd-1005",
+      "productName": "Product E",
+      "category": "Toys",
+      "price": 15.00,
+      "stock": 150
+    },
+        {
+      "productId": "prd-1006",
+      "productName": "Product F",
+      "category": "Garden",
+      "price": 30.00,
+      "stock": 75
+    }
+
+  ]
+}
