@@ -22,6 +22,7 @@ public class UploadTest extends JMeterTestCase
     public UploadTest()
     {
 //        super("upload.jmx");
-        super("FileUpload.jmx");
+//        super("FileUpload.jmx");
+        super("AnotherUpload.jmx");
     }
 }

@@ -15,7 +15,7 @@
         <collectionProp name="Arguments.arguments">
           <elementProp name="host" elementType="Argument">
             <stringProp name="Argument.name">host</stringProp>
-            <stringProp name="Argument.value">www.imgonline.com.ua</stringProp>
+            <stringProp name="Argument.value">practice.expandtesting.com</stringProp>
             <stringProp name="Argument.metadata">=</stringProp>
           </elementProp>
           <elementProp name="scheme" elementType="Argument">
@@ -27,8 +27,8 @@
       </Arguments>
       <hashTree/>
       <ConfigTestElement guiclass="HttpDefaultsGui" testclass="ConfigTestElement" testname="HTTP Request Defaults" enabled="true">
-        <stringProp name="HTTPSampler.domain">www.csm-testcenter.org</stringProp>
-        <stringProp name="HTTPSampler.protocol">http</stringProp>
+        <stringProp name="HTTPSampler.domain">practice.expandtesting.com</stringProp>
+        <stringProp name="HTTPSampler.protocol">https</stringProp>
         <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="User Defined Variables">
           <collectionProp name="Arguments.arguments"/>
         </elementProp>
@@ -41,7 +41,7 @@
         <boolProp name="CookieManager.controlledByThreadGroup">false</boolProp>
       </CookieManager>
       <hashTree/>
-      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Thread Group" enabled="true">
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Thread Group">
         <intProp name="ThreadGroup.num_threads">1</intProp>
         <intProp name="ThreadGroup.ramp_time">1</intProp>
         <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
@@ -52,42 +52,22 @@
         </elementProp>
       </ThreadGroup>
       <hashTree>
-        <RecordingController guiclass="RecordController" testclass="RecordingController" testname="Recording Controller" enabled="true"/>
+        <RecordingController guiclass="RecordController" testclass="RecordingController" testname="Recording Controller"/>
         <hashTree>
-          <TransactionController guiclass="TransactionControllerGui" testclass="TransactionController" testname="Visit" enabled="true">
+          <TransactionController guiclass="TransactionControllerGui" testclass="TransactionController" testname="Visit">
             <boolProp name="TransactionController.includeTimers">false</boolProp>
           </TransactionController>
           <hashTree>
-            <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Visit-7" enabled="true">
+            <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Visit">
               <stringProp name="HTTPSampler.port">443</stringProp>
-              <stringProp name="HTTPSampler.protocol">${scheme}</stringProp>
               <stringProp name="HTTPSampler.contentEncoding">UTF-8</stringProp>
-              <stringProp name="HTTPSampler.path">/test</stringProp>
+              <stringProp name="HTTPSampler.path">/upload</stringProp>
               <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
               <stringProp name="HTTPSampler.method">GET</stringProp>
               <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
               <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
               <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="User Defined Variables">
-                <collectionProp name="Arguments.arguments">
-                  <elementProp name="do" elementType="HTTPArgument">
-                    <boolProp name="HTTPArgument.always_encode">false</boolProp>
-                    <stringProp name="Argument.name">do</stringProp>
-                    <stringProp name="Argument.value">show</stringProp>
-                    <stringProp name="Argument.metadata">=</stringProp>
-                  </elementProp>
-                  <elementProp name="subdo" elementType="HTTPArgument">
-                    <boolProp name="HTTPArgument.always_encode">false</boolProp>
-                    <stringProp name="Argument.name">subdo</stringProp>
-                    <stringProp name="Argument.value">common</stringProp>
-                    <stringProp name="Argument.metadata">=</stringProp>
-                  </elementProp>
-                  <elementProp name="test" elementType="HTTPArgument">
-                    <boolProp name="HTTPArgument.always_encode">false</boolProp>
-                    <stringProp name="Argument.name">test</stringProp>
-                    <stringProp name="Argument.value">file_upload</stringProp>
-                    <stringProp name="Argument.metadata">=</stringProp>
-                  </elementProp>
-                </collectionProp>
+                <collectionProp name="Arguments.arguments"/>
               </elementProp>
             </HTTPSamplerProxy>
             <hashTree>
@@ -123,7 +103,7 @@
                   </elementProp>
                   <elementProp name="Accept-Encoding" elementType="Header">
                     <stringProp name="Header.name">Accept-Encoding</stringProp>
-                    <stringProp name="Header.value">gzip, deflate</stringProp>
+                    <stringProp name="Header.value">gzip, deflate, br, zstd</stringProp>
                   </elementProp>
                   <elementProp name="User-Agent" elementType="Header">
                     <stringProp name="Header.name">User-Agent</stringProp>
@@ -142,10 +122,10 @@
             <boolProp name="TransactionController.includeTimers">false</boolProp>
           </TransactionController>
           <hashTree>
-            <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Upload-13">
-              <stringProp name="HTTPSampler.port">0</stringProp>
+            <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Upload">
+              <stringProp name="HTTPSampler.port">443</stringProp>
               <stringProp name="HTTPSampler.contentEncoding">UTF-8</stringProp>
-              <stringProp name="HTTPSampler.path">/test?do=test&amp;subdo=file_upload</stringProp>
+              <stringProp name="HTTPSampler.path">/upload</stringProp>
               <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
               <stringProp name="HTTPSampler.method">POST</stringProp>
               <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
@@ -153,57 +133,68 @@
               <boolProp name="HTTPSampler.BROWSER_COMPATIBLE_MULTIPART">true</boolProp>
               <elementProp name="HTTPsampler.Files" elementType="HTTPFileArgs">
                 <collectionProp name="HTTPFileArgs.files">
-                  <elementProp name="echo-test.csv" elementType="HTTPFileArg">
-                    <stringProp name="File.mimetype">text/csv</stringProp>
-                    <stringProp name="File.path">echo-test.csv</stringProp>
-                    <stringProp name="File.paramname">file_upload</stringProp>
+                  <elementProp name="hmmm.jpg" elementType="HTTPFileArg">
+                    <stringProp name="File.mimetype">image/jpeg</stringProp>
+                    <stringProp name="File.path">hmmm.jpg</stringProp>
+                    <stringProp name="File.paramname">file</stringProp>
                   </elementProp>
                 </collectionProp>
               </elementProp>
               <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
               <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="User Defined Variables">
-                <collectionProp name="Arguments.arguments">
-                  <elementProp name="http_submit" elementType="HTTPArgument">
-                    <boolProp name="HTTPArgument.always_encode">false</boolProp>
-                    <stringProp name="Argument.name">http_submit</stringProp>
-                    <stringProp name="Argument.value">Start HTTP upload</stringProp>
-                    <stringProp name="Argument.metadata">=</stringProp>
-                    <boolProp name="HTTPArgument.use_equals">true</boolProp>
-                    <stringProp name="HTTPArgument.content_type">text/html</stringProp>
-                  </elementProp>
-                </collectionProp>
+                <collectionProp name="Arguments.arguments"/>
               </elementProp>
             </HTTPSamplerProxy>
             <hashTree>
               <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="HTTP Header Manager" enabled="true">
                 <collectionProp name="HeaderManager.headers">
+                  <elementProp name="Sec-Fetch-Mode" elementType="Header">
+                    <stringProp name="Header.name">Sec-Fetch-Mode</stringProp>
+                    <stringProp name="Header.value">navigate</stringProp>
+                  </elementProp>
+                  <elementProp name="Referer" elementType="Header">
+                    <stringProp name="Header.name">Referer</stringProp>
+                    <stringProp name="Header.value">${scheme}://${host}/upload</stringProp>
+                  </elementProp>
+                  <elementProp name="Sec-Fetch-Site" elementType="Header">
+                    <stringProp name="Header.name">Sec-Fetch-Site</stringProp>
+                    <stringProp name="Header.value">same-origin</stringProp>
+                  </elementProp>
                   <elementProp name="Accept-Language" elementType="Header">
                     <stringProp name="Header.name">Accept-Language</stringProp>
                     <stringProp name="Header.value">de,en-US;q=0.7,en;q=0.3</stringProp>
                   </elementProp>
                   <elementProp name="Origin" elementType="Header">
                     <stringProp name="Header.name">Origin</stringProp>
-                    <stringProp name="Header.value">null</stringProp>
+                    <stringProp name="Header.value">${scheme}://${host}</stringProp>
                   </elementProp>
-                  <elementProp name="Upgrade-Insecure-Requests" elementType="Header">
-                    <stringProp name="Header.name">Upgrade-Insecure-Requests</stringProp>
-                    <stringProp name="Header.value">1</stringProp>
+                  <elementProp name="Sec-Fetch-User" elementType="Header">
+                    <stringProp name="Header.name">Sec-Fetch-User</stringProp>
+                    <stringProp name="Header.value">?1</stringProp>
                   </elementProp>
                   <elementProp name="Priority" elementType="Header">
                     <stringProp name="Header.name">Priority</stringProp>
                     <stringProp name="Header.value">u=0, i</stringProp>
                   </elementProp>
+                  <elementProp name="Accept" elementType="Header">
+                    <stringProp name="Header.name">Accept</stringProp>
+                    <stringProp name="Header.value">text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8</stringProp>
+                  </elementProp>
+                  <elementProp name="Upgrade-Insecure-Requests" elementType="Header">
+                    <stringProp name="Header.name">Upgrade-Insecure-Requests</stringProp>
+                    <stringProp name="Header.value">1</stringProp>
+                  </elementProp>
                   <elementProp name="Accept-Encoding" elementType="Header">
                     <stringProp name="Header.name">Accept-Encoding</stringProp>
-                    <stringProp name="Header.value">gzip, deflate</stringProp>
+                    <stringProp name="Header.value">gzip, deflate, br, zstd</stringProp>
                   </elementProp>
                   <elementProp name="User-Agent" elementType="Header">
                     <stringProp name="Header.name">User-Agent</stringProp>
                     <stringProp name="Header.value">Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:136.0) Gecko/20100101 Firefox/136.0</stringProp>
                   </elementProp>
-                  <elementProp name="Accept" elementType="Header">
-                    <stringProp name="Header.name">Accept</stringProp>
-                    <stringProp name="Header.value">text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8</stringProp>
+                  <elementProp name="Sec-Fetch-Dest" elementType="Header">
+                    <stringProp name="Header.name">Sec-Fetch-Dest</stringProp>
+                    <stringProp name="Header.value">document</stringProp>
                   </elementProp>
                 </collectionProp>
               </HeaderManager>
@@ -212,7 +203,7 @@
           </hashTree>
         </hashTree>
       </hashTree>
-      <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="View Results Tree">
+      <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="View Results Tree" enabled="true">
         <boolProp name="ResultCollector.error_logging">false</boolProp>
         <objProp>
           <name>saveConfig</name>
@@ -288,7 +279,7 @@
         <stringProp name="ProxyControlGui.content_type_include"></stringProp>
         <stringProp name="ProxyControlGui.content_type_exclude"></stringProp>
         <boolProp name="ProxyControlGui.notify_child_sl_filtered">false</boolProp>
-        <stringProp name="ProxyControlGui.proxy_prefix_http_sampler_name">Upload</stringProp>
+        <stringProp name="ProxyControlGui.proxy_prefix_http_sampler_name">Visit</stringProp>
         <intProp name="ProxyControlGui.proxy_http_sampler_naming_mode">1</intProp>
         <stringProp name="ProxyControlGui.proxy_pause_http_sampler"></stringProp>
         <boolProp name="ProxyControlGui.detect_graphql_request">true</boolProp>
@@ -331,7 +322,7 @@
               <connectTime>true</connectTime>
             </value>
           </objProp>
-          <stringProp name="filename"></stringProp>
+          <stringProp name="filename">AnotherFuleUpload.xml</stringProp>
         </ResultCollector>
         <hashTree/>
       </hashTree>
