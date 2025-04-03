@@ -15,6 +15,10 @@
  */
 package com.xceptance.loadtest.jmeter.util;
 
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -30,6 +34,10 @@ import java.util.stream.Stream;
 
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.http.HttpEntity;
+import org.apache.http.entity.ContentType;
+import org.apache.http.entity.mime.HttpMultipartMode;
+import org.apache.http.entity.mime.MultipartEntityBuilder;
 import org.apache.jmeter.config.Arguments;
 import org.apache.jmeter.config.ConfigTestElement;
 import org.apache.jmeter.protocol.http.control.AuthManager;
@@ -42,7 +50,9 @@ import org.apache.jmeter.protocol.http.sampler.HTTPSampleResult;
 import org.apache.jmeter.protocol.http.sampler.HTTPSamplerProxy;
 import org.apache.jmeter.protocol.http.util.ConversionUtils;
 import org.apache.jmeter.protocol.http.util.HTTPConstantsInterface;
+import org.apache.jmeter.protocol.http.util.HTTPFileArg;
 import org.apache.jmeter.samplers.SampleResult;
+import org.apache.jmeter.services.FileServer;
 import org.apache.jmeter.testelement.property.JMeterProperty;
 import org.apache.jmeter.threads.SamplePackage;
 import org.apache.jmeter.util.JMeterUtils;
@@ -194,6 +204,10 @@ public class HttpRequestHandler
 
         // add arguments
         addArgumentData(request, sampler);
+        
+        // check if we have a file upload and transform the request accordingly
+        handleFileUpload(request, sampler);
+        
         // fire the request
         HttpResponse response = request.fire();
 
@@ -525,13 +539,66 @@ public class HttpRequestHandler
                     request.header(e.get(index).getName(), e.get(index).getValue());
                 }
             }
-//            CollectionProperty headers = e.getHeaders();
-//            headers.forEach(p ->
-//            {
-//                // remove name from the combined value attribute
-//                request.header(p.getName(), p.getStringValue().replace(p.getName(), ""));
-//            });
         });
+        return request;
+    }
+    
+    private static HttpRequest handleFileUpload(HttpRequest request, HTTPSamplerProxy requestData) throws Exception
+    {
+        // check of we need to handle file upload, otherwise simply return the request
+        if (requestData.getHTTPFileCount() > 0 &&
+            requestData.getDoMultipart())
+        {
+            MultipartEntityBuilder multipartEntityBuilder = MultipartEntityBuilder.create();
+            
+            // check and set browser compatible mode
+            if (requestData.getDoBrowserCompatibleMultipart())
+            {
+                multipartEntityBuilder.setMode(HttpMultipartMode.BROWSER_COMPATIBLE);
+            }
+            
+            // transform  parameter since they get are part of the post body
+            if (requestData.getArguments().getArgumentCount() > 0)
+            {
+                Map<String, String> argumentsAsMap = requestData.getArguments().getArgumentsAsMap();
+                for (Map.Entry<String, String> entry : argumentsAsMap.entrySet())
+                {
+                    multipartEntityBuilder.addTextBody(entry.getKey(), entry.getValue());
+                };
+            }
+            
+            // remove params, since they are part of the body
+            request.removeParams();
+            
+            // iterate over the files for upload
+            for (int index = 0; index < requestData.getHTTPFileCount(); index++)
+            {
+                // get file arguments
+                HTTPFileArg httpFileArg = requestData.getHTTPFiles()[index];
+                
+                // get the resolved file from jmeter file server
+                File resolvedFile = FileServer.getFileServer().getResolvedFile(httpFileArg.getPath());
+                
+                // build the binary body
+                final InputStream targetStream =  new FileInputStream(resolvedFile);
+                multipartEntityBuilder.addBinaryBody(httpFileArg.getParamName(), 
+                                                     targetStream, 
+                                                     ContentType.create(httpFileArg.getMimeType()), 
+                                                     httpFileArg.getPath());
+            }
+            
+            HttpEntity httpEntity = multipartEntityBuilder.build();
+            
+            // write the body data
+            final ByteArrayOutputStream os = new ByteArrayOutputStream();
+            httpEntity.writeTo(os);
+            os.flush();
+            
+            // overwrite content type and generate the boundary
+            request.header(HTTPConstantsInterface.HEADER_CONTENT_TYPE, httpEntity.getContentType().getValue())
+            .body(os.toByteArray());
+        }
+        
         return request;
     }
 }
