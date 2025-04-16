@@ -6,7 +6,7 @@ The JMeter based Performance Test Suite is built on the foundational concepts of
 Essentially, you will continue to use JMeter for recording, editing, and maintaining your tests. The key difference lies in the execution and evaluation phase, which will be handled by XLT. This integration provides enhanced debugging capabilities, as you can leverage XLT's features to gain clear insights into the executed actions, requests, and responses.
 
 ## Requirements
-* Java Version 17 or higher
+* Java Version 21
 * An existing `.jmx` file for test execution. This can be created with [JMeter](https://jmeter.apache.org/).
 * There are several `.jmx` example files for usage at `<testsuite>\config\data\jmeter`
 
