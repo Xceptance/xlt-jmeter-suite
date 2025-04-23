@@ -785,8 +785,8 @@ public class XLTJMeterEngine extends StandardJMeterEngine
 				}
 			}
 
-			// Check if we have a sampler to sample
-			if (current != null)
+			// Check if we have a sampler to sample additional check if the current element is disabled
+			if (current != null && current.isEnabled())
 			{
 				executeSamplePackage(current, transactionSampler, transactionPack, threadContext);
 			}
@@ -857,7 +857,6 @@ public class XLTJMeterEngine extends StandardJMeterEngine
 			Sampler sampler = pack.getSampler();
 			sampler.setThreadContext(JMeterContextService.getContext());
 			TestBeanHelper.prepare(sampler);
-			// result =  sampler.sample(null);
 
 			//*************************************************************
 			// XLT request
@@ -865,7 +864,6 @@ public class XLTJMeterEngine extends StandardJMeterEngine
 			try
 			{
 				result = HttpRequestHandler.buildAndExecute(pack, current.getName());
-				// result = HttpRequestHandler.buildAndExecuteRequest(result, pack, current.getName());
 
 				threadVars.putObject(VAR_IS_SAME_USER_KEY, isSameUserOnNextIteration);
 				threadContext.setVariables(threadVars);
