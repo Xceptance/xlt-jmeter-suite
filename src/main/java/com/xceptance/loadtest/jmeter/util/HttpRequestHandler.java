@@ -20,6 +20,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -157,7 +158,7 @@ public class HttpRequestHandler
             method = sampler.getMethod();
             baseUrl = sampler.getUrl().toString();
 
-            resultPack = createSampleResult(new URL(baseUrl), method);
+            resultPack = createSampleResult(new URI(baseUrl).toURL(), method);
         }
         else
         {
@@ -187,7 +188,7 @@ public class HttpRequestHandler
 
         if (am != null)
         {
-            Authorization authForURL = am.getAuthForURL(new URL(baseUrl));
+            Authorization authForURL = am.getAuthForURL(new URI(baseUrl).toURL());
             if (authForURL != null)
             {
                 // used from auth manager which also ensure Kerberos connection, needs check if we need this
