@@ -281,12 +281,22 @@ public class XLTJMeterEngine extends StandardJMeterEngine
 		test.traverse(postSearcher);
 		test.traverse(configFile);
 
+		 HashTree subTree = null;
+		if (setupSearcher.getSearchResults().size() != 0)
+		{
+		    subTree = setupSearcher.getSubTree(setupSearcher.getSearchResults().iterator().next());
+		}
+		
 		// default methods for JMeter
 		TestCompiler.initialize();
 		JMeterContextService.clearTotalThreads();
 
+		// main thread group
 		Collection<AbstractThreadGroup> searchResults = searcher.getSearchResults();
 
+		// remove setup thread groups from iteration, all elements will be handled automatically vie JMeter config
+		searchResults.removeIf(p -> p instanceof SetupThreadGroup);
+		
 		// if no thread group is found, no point in continuing
 		Assert.assertFalse("No usable requests in xml file found.", searchResults.isEmpty());
 
@@ -312,10 +322,16 @@ public class XLTJMeterEngine extends StandardJMeterEngine
 
 			ListedHashTree groupTree = (ListedHashTree) searcher.getSubTree(currentThreadGroup);
 			
-			// add all CSV files, if there are any, to the group for auto loading via JMeter
+			// add all config elements, if there are any, to the group for auto loading via JMeter
 			Set<Object> keySet = groupTree.keySet();
 			HashTree hashTree = groupTree.get(keySet.iterator().next());
 			hashTree.add(configFile.getSearchResults());
+			
+			if (subTree != null)
+			{
+    			// add setup thread group elements for auto loading via JMeter
+			    hashTree.add(subTree);
+			}
 			
 	         // resolve loops for the thread group, if there are any, set it to 1
             AbstractThreadGroup loopCheck = (AbstractThreadGroup) mainController;
@@ -464,9 +480,36 @@ public class XLTJMeterEngine extends StandardJMeterEngine
 					}
 				}
 			}
+			
+			// check if there are elements in the thread group which are not direct requests, for example script sampler and execute them
+			if (sam.isEnabled() && !(sam instanceof HTTPSamplerProxy))
+			{
+                // execution
+                processSampler(sam, null, context);
+                
+                context.cleanAfterSample();
+                
+                boolean lastSampleOk = TRUE.equals(context.getVariables()
+                        .get(XLTJMeterUtils.LAST_SAMPLE_OK));
+                // restart of the next loop
+                // - was requested through threadContext
+                // - or the last sample failed AND the onErrorStartNextLoop option is enabled
+                if(context.getTestLogicalAction() != JMeterContext.TestLogicalAction.CONTINUE || !lastSampleOk)
+                {
+                    context.setTestLogicalAction(JMeterContext.TestLogicalAction.CONTINUE);
+                }
+
+                sam = mainController.next();
+
+                if(sam == null || mainController.isDone())
+                {
+                    running = false;
+                    break;
+                }
+			}
 
 			// check if the action is not disabled
-            if (sam.isEnabled() && getActiveTransactionOrThreadParentController(threadGroupHashtree,sam))
+			else if (sam.isEnabled() && getActiveTransactionOrThreadParentController(threadGroupHashtree,sam))
             {
     			printDbgMsg("Process:" + name);
     			try
