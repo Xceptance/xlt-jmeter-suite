@@ -31,6 +31,7 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 import java.util.regex.PatternSyntaxException;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.commons.codec.binary.Base64;
@@ -43,6 +44,7 @@ import org.apache.jmeter.config.Arguments;
 import org.apache.jmeter.config.ConfigTestElement;
 import org.apache.jmeter.protocol.http.control.AuthManager;
 import org.apache.jmeter.protocol.http.control.Authorization;
+import org.apache.jmeter.protocol.http.control.CookieManager;
 import org.apache.jmeter.protocol.http.control.HeaderManager;
 import org.apache.jmeter.protocol.http.parser.BaseParser;
 import org.apache.jmeter.protocol.http.parser.LinkExtractorParseException;
@@ -62,6 +64,7 @@ import org.apache.oro.text.MalformedCachePatternException;
 import org.apache.oro.text.regex.Pattern;
 import org.apache.oro.text.regex.Perl5Matcher;
 import org.htmlunit.HttpMethod;
+import org.htmlunit.util.Cookie;
 
 import com.xceptance.loadtest.data.util.Context;
 import com.xceptance.xlt.engine.httprequest.HttpRequest;
@@ -146,6 +149,7 @@ public class HttpRequestHandler
     {
         HTTPSamplerProxy sampler = null;
         List<HeaderManager> hm = new ArrayList<>();
+        CookieManager cm = null;
         AuthManager am = null;
         SampleResult resultPack = null;
         String method;
@@ -179,6 +183,10 @@ public class HttpRequestHandler
             {
                 am = (AuthManager) element;
             }
+            if (element instanceof CookieManager)
+            {
+                cm =  (CookieManager) element;
+            }
         }
 
         // build the request
@@ -201,6 +209,11 @@ public class HttpRequestHandler
         {
             // add header data
             addHeaderData(request, hm, sampler);
+        }
+        
+        if (cm != null)
+        {
+            handleCookies(cm);
         }
 
         // add arguments
@@ -249,7 +262,6 @@ public class HttpRequestHandler
                 // ignore
             }
 
-            System.out.println("Test embedded downloading");
             HTTPSampleResult lContainer = null;
             if(urls != null && urls.hasNext())
             {
@@ -301,14 +313,8 @@ public class HttpRequestHandler
                             }
                             catch(Exception e)
                             {
-                                /*
-                                res.addSubResult(errorResult(new Exception(url.toString() + " is not a correct URI", e),
-                                                             new HTTPSampleResult(res)));
-                                setParentSampleSuccess(res, false);
-                                 */
                                 continue;
                             }
-                            // log.debug("allowPattern: {}, excludePattern: {}, url: {}", allowRegex, excludeRegex, url);
                             if(!allowPredicate.test(url))
                             {
                                 continue; // we have a pattern and the URL does not match, so skip it
@@ -323,12 +329,6 @@ public class HttpRequestHandler
                             }
                             catch(MalformedURLException | URISyntaxException e)
                             {
-                                /*
-                                res.addSubResult(
-                                        errorResult(new Exception(url.toString() + " URI can not be normalized", e),
-                                                    new HTTPSampleResult(res)));
-                                setParentSampleSuccess(res, false);
-                                 */
                                 continue;
                             }
 
@@ -339,11 +339,7 @@ public class HttpRequestHandler
                     }
                     catch(ClassCastException e)
                     {
-                        /*
-                        res.addSubResult(errorResult(new Exception(binURL + " is not a correct URI", e),
-                                                     new HTTPSampleResult(res)));
-                        setParentSampleSuccess(res, false);
-                         */
+                        // ignore
                     }
                 }
             }
@@ -465,7 +461,7 @@ public class HttpRequestHandler
     }
 
     /**
-     * If username and password are set for basic authorization, Base64 encoded user header is set.
+     * If user name and password are set for basic authorization, Base64 encoded user header is set.
      *
      * @param request
      * @param username
@@ -491,7 +487,7 @@ public class HttpRequestHandler
      * @param requestData
      * @return HttpRequest
      */
-    private static HttpRequest addArgumentData(HttpRequest request, HTTPSamplerProxy requestData)
+    private static void addArgumentData(HttpRequest request, HTTPSamplerProxy requestData)
     {
         // check and add arguments if there are any
         Arguments arguments = requestData.getArguments();
@@ -510,7 +506,6 @@ public class HttpRequestHandler
             Map<String, String> argumentsAsMap = arguments.getArgumentsAsMap();
             request.body(String.valueOf(argumentsAsMap.entrySet().iterator().next().getValue()));
         }
-        return request;
     }
 
     /**
@@ -520,7 +515,7 @@ public class HttpRequestHandler
      * @param headerData
      * @return
      */
-    private static HttpRequest addHeaderData(HttpRequest request, List<HeaderManager> headerData, HTTPSamplerProxy sampler)
+    private static void addHeaderData(HttpRequest request, List<HeaderManager> headerData, HTTPSamplerProxy sampler)
     {
         // transform header keys/values from loaded data to request confirm data
         headerData.forEach(e ->
@@ -541,10 +536,17 @@ public class HttpRequestHandler
                 }
             }
         });
-        return request;
     }
     
-    private static HttpRequest handleFileUpload(HttpRequest request, HTTPSamplerProxy requestData) throws Exception
+    /**
+     * Handle all conversion and adjustments in case there is file upload involved. This method take care of multipart boundary handling
+     * header and parameter adjustments/conversation. 
+     * 
+     * @param request current request to build
+     * @param requestData JMeter request data
+     * @throws Exception
+     */
+    private static void handleFileUpload(HttpRequest request, HTTPSamplerProxy requestData) throws Exception
     {
         // check of we need to handle file upload, otherwise simply return the request
         if (requestData.getHTTPFileCount() > 0 &&
@@ -599,7 +601,41 @@ public class HttpRequestHandler
             request.header(HTTPConstantsInterface.HEADER_CONTENT_TYPE, httpEntity.getContentType().getValue())
             .body(os.toByteArray());
         }
-        
-        return request;
+    }
+    
+    /**
+     * Use the JMeter {@link CookieManager} which has the data from the jmx file and convert it into data which is compatible with XLT.
+     * 
+     * @param cm JMeter CookieManager
+     */
+    private static void handleCookies(CookieManager cm)
+    {
+        // XLT web driver cookie manager
+        org.htmlunit.CookieManager cookieManager = HttpRequest.getDefaultWebClient().getCookieManager();
+
+        for (int index = 0; index < cm.getCookieCount(); index++)
+        {
+            // stream the data from JMeter into usable form
+            JMeterProperty jMeterProperty = cm.getCookies().get(index);
+            
+            // ensure we do not add the same cookie again
+            if (cookieManager.getCookie(jMeterProperty.getName()) == null)
+            {
+                // direct data access due to JMeter structure
+                List<String> data = java.util.regex.Pattern.compile("\t").splitAsStream(jMeterProperty.getStringValue()).collect(Collectors.toList());
+                if (!data.isEmpty())
+                {
+                    cookieManager.addCookie(new Cookie
+                    (
+                        data.get(0),    // domain
+                        data.get(5),    // name
+                        data.get(6),    // value
+                        data.get(2),    // path
+                        Integer.MAX_VALUE,  // maxAge, internal handled but without any time this will prevent cookie usage
+                        Boolean.valueOf(data.get(1)) // secure
+                    ));
+                }
+            }
+        }
     }
 }
