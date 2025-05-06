@@ -281,21 +281,12 @@ public class XLTJMeterEngine extends StandardJMeterEngine
 		test.traverse(postSearcher);
 		test.traverse(configFile);
 
-		 HashTree subTree = null;
-		if (setupSearcher.getSearchResults().size() != 0)
-		{
-		    subTree = setupSearcher.getSubTree(setupSearcher.getSearchResults().iterator().next());
-		}
-		
 		// default methods for JMeter
 		TestCompiler.initialize();
 		JMeterContextService.clearTotalThreads();
 
-		// main thread group
+		// main thread group, setup and tearDown are handled accordingly to tree structure
 		Collection<AbstractThreadGroup> searchResults = searcher.getSearchResults();
-
-		// remove setup thread groups from iteration, all elements will be handled automatically vie JMeter config
-		searchResults.removeIf(p -> p instanceof SetupThreadGroup);
 		
 		// if no thread group is found, no point in continuing
 		Assert.assertFalse("No usable requests in xml file found.", searchResults.isEmpty());
@@ -320,18 +311,13 @@ public class XLTJMeterEngine extends StandardJMeterEngine
 				currentThreadGroupName = String.format(UNNAMED_THREAD_GROUP + "%d", ++unknownThreadGroupCounter);
 			}
 
-			ListedHashTree groupTree = (ListedHashTree) searcher.getSubTree(currentThreadGroup);
+			// init the main tree data structure
+            ListedHashTree groupTree = (ListedHashTree) searcher.getSubTree(currentThreadGroup);
 			
 			// add all config elements, if there are any, to the group for auto loading via JMeter
 			Set<Object> keySet = groupTree.keySet();
 			HashTree hashTree = groupTree.get(keySet.iterator().next());
 			hashTree.add(configFile.getSearchResults());
-			
-			if (subTree != null)
-			{
-    			// add setup thread group elements for auto loading via JMeter
-			    hashTree.add(subTree);
-			}
 			
 	         // resolve loops for the thread group, if there are any, set it to 1
             AbstractThreadGroup loopCheck = (AbstractThreadGroup) mainController;
@@ -421,9 +407,7 @@ public class XLTJMeterEngine extends StandardJMeterEngine
 			}
 
 			// First check if the action name is derived from the request name. If requests have no name a default name
-			// is used
-
-			// If no request naming is used, check if there is an active transaction controller where we need to
+			// is used, if no request naming is used, check if there is an active transaction controller where we need to
 			// process the children
 			if(isInsideOrDirectTransactionSampler)
 			{
@@ -565,7 +549,7 @@ public class XLTJMeterEngine extends StandardJMeterEngine
     								if(closestTransactionOrThreadParentController instanceof ThreadGroup)
     								{
     									if(closestTransactionOrThreadParentController.getName().length() !=0 &&
-    											closestTransactionOrThreadParentController.getName().equals(threadGroupName) == false)
+    									   closestTransactionOrThreadParentController.getName().equals(threadGroupName) == false)
     									{
     										isInsideOrDirectTransactionSampler = true;
     										// We must reuse the passed name, in case the thread group is unnamed (and has a fallback name)
@@ -691,8 +675,6 @@ public class XLTJMeterEngine extends StandardJMeterEngine
     					ae.setStackTrace(e.getStackTrace());
     					throw ae;
     				}
-    
-    				// TODO Auto-generated catch block
     				e.printStackTrace();
     			}
             }
