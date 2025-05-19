@@ -31,7 +31,6 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 import java.util.regex.PatternSyntaxException;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.commons.codec.binary.Base64;
@@ -44,6 +43,7 @@ import org.apache.jmeter.config.Arguments;
 import org.apache.jmeter.config.ConfigTestElement;
 import org.apache.jmeter.protocol.http.control.AuthManager;
 import org.apache.jmeter.protocol.http.control.Authorization;
+import org.apache.jmeter.protocol.http.control.Cookie;
 import org.apache.jmeter.protocol.http.control.CookieManager;
 import org.apache.jmeter.protocol.http.control.HeaderManager;
 import org.apache.jmeter.protocol.http.parser.BaseParser;
@@ -64,7 +64,6 @@ import org.apache.oro.text.MalformedCachePatternException;
 import org.apache.oro.text.regex.Pattern;
 import org.apache.oro.text.regex.Perl5Matcher;
 import org.htmlunit.HttpMethod;
-import org.htmlunit.util.Cookie;
 
 import com.xceptance.loadtest.data.util.Context;
 import com.xceptance.xlt.engine.httprequest.HttpRequest;
@@ -615,27 +614,18 @@ public class HttpRequestHandler
 
         for (int index = 0; index < cm.getCookieCount(); index++)
         {
-            // stream the data from JMeter into usable form
-            JMeterProperty jMeterProperty = cm.getCookies().get(index);
+            // get the JMeter cookie and 
+            Cookie cookie = (Cookie) cm.getCookies().get(index).getObjectValue();
             
-            // ensure we do not add the same cookie again
-            if (cookieManager.getCookie(jMeterProperty.getName()) == null)
-            {
-                // direct data access due to JMeter structure
-                List<String> data = java.util.regex.Pattern.compile("\t").splitAsStream(jMeterProperty.getStringValue()).collect(Collectors.toList());
-                if (!data.isEmpty())
-                {
-                    cookieManager.addCookie(new Cookie
-                    (
-                        data.get(0),    // domain
-                        data.get(5),    // name
-                        data.get(6),    // value
-                        data.get(2),    // path
-                        Integer.MAX_VALUE,  // maxAge, internal handled but without any time this will prevent cookie usage
-                        Boolean.valueOf(data.get(1)) // secure
-                    ));
-                }
-            }
+            cookieManager.addCookie(new org.htmlunit.util.Cookie
+            (
+                cookie.getDomain(), // domain
+                cookie.getName(),   // name
+                cookie.getValue(),  // value
+                cookie.getPath(),   // path
+                Integer.MAX_VALUE,  // maxAge, internal handled but without any time this will prevent cookie usage
+                cookie.getSecure()  // secure
+            ));
         }
     }
 }
