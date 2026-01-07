@@ -72,6 +72,7 @@ import com.xceptance.xlt.api.engine.Session;
 import com.xceptance.xlt.api.util.XltLogger;
 import com.xceptance.xlt.api.util.XltProperties;
 import com.xceptance.xlt.common.XltConstants;
+import com.xceptance.xlt.engine.httprequest.HttpRequest;
 
 /**
  * This class is based on {@link StandardJMeterEngine}. Additional it uses parts of the {@link JMeterThread} for the usage in XLT.
@@ -203,6 +204,10 @@ public class XLTJMeterEngine extends StandardJMeterEngine
 		useRequestNaming = true; 
 		compiler = new TestCompiler(testTree);
 		threadVars = new JMeterVariables();
+		
+        // default value is true, but this can be selected via xml value, therefore we need to check it for every request
+		// before execution
+        HttpRequest.getDefaultWebClient().getOptions().setRedirectEnabled(false);
 	}
 
 	/**

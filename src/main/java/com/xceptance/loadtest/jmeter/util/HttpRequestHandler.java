@@ -220,6 +220,13 @@ public class HttpRequestHandler
         
         // check if we have a file upload and transform the request accordingly
         handleFileUpload(request, sampler);
+
+        // check if the redirects are enabled or not
+        if (sampler.getFollowRedirects() ||
+            sampler.getAutoRedirects())
+        {
+            HttpRequest.getDefaultWebClient().getOptions().setRedirectEnabled(true);
+        }
         
         // fire the request
         HttpResponse response = request.fire();
@@ -530,8 +537,12 @@ public class HttpRequestHandler
                 }
                 else
                 {
-                    // add the header values
-                    request.header(e.get(index).getName(), e.get(index).getValue());
+                    // add the header values, if they are already resolved to variables, may be in scripts later in the flow
+                    if (!e.get(index).getName().contains("${") && 
+                        !e.get(index).getValue().contains("${"))
+                    {
+                        request.header(e.get(index).getName(), e.get(index).getValue());
+                    }
                 }
             }
         });
