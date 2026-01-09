@@ -15,93 +15,313 @@
  */
 package com.xceptance.loadtest.data.util;
 
-import java.util.ArrayList;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.net.URLDecoder;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.junit.Assert;
-
+import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
+import org.apache.http.client.utils.URIBuilder;
+import org.apache.jmeter.protocol.http.util.HTTPConstants;
+import org.htmlunit.FormEncodingType;
 import org.htmlunit.HttpMethod;
+import org.htmlunit.WebClient;
+import org.htmlunit.WebRequest;
+import org.htmlunit.WebResponse;
 import org.htmlunit.util.NameValuePair;
-import com.jayway.jsonpath.JsonPath;
-import com.jayway.jsonpath.ReadContext;
-import com.xceptance.loadtest.control.JMeterTestCase;
-import com.xceptance.xlt.api.actions.AbstractAction;
-import com.xceptance.xlt.engine.SessionImpl;
-import com.xceptance.xlt.engine.httprequest.HttpRequest;
+import org.htmlunit.util.UrlUtils;
+import org.junit.Assert;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.xceptance.xlt.api.engine.Session;
+import com.xceptance.xlt.engine.XltWebClient;
 import com.xceptance.xlt.engine.httprequest.HttpResponse;
 
 /**
  * A Simple Action for basic REST desires, which handles exactly one request. Is able to validate
  * the response and extract values from it.
  */
-public class HttpRequestJmeter extends AbstractAction
+public class HttpRequestJmeter
 {
+    /**
+     * Whether or not to allow this request to load the headers from the header manager.
+     */
+    protected boolean loadAdditionalHeader = true;
+    
+    /**
+     * This must be selected separately.
+     */
+    protected boolean urlEncodingDesired = false;
 
-    /** The response, needs to be stored for validations and data extraction. */
-    private HttpResponse response;
+    
+    /**
+     * Whether or not to allow this request to be cached during a page load
+     *
+     * @param cachingEnabled
+     *            whether or not to allow this request to be cached during a page load
+     */
+    public HttpRequestJmeter additonalHeader(final boolean loadAdditionalHeader)
+    {
+        this.loadAdditionalHeader = loadAdditionalHeader;
+        return this;
+    }
+    
+    /**
+     * Control if the URL should be encoded or not.<br>
+     * Default is {@code true}. This effects a Page based request only.
+     * <p>
+     * However, plain URLs might be needed for OCAPI requests.
+     *
+     *@param encodeUrl set to {@code true} if URL encoding is desired (DEFAULT), {@code false} otherwise
+     *
+     * @return HttpRequest configuration
+     */
+    public HttpRequestJmeter urlEncodingDesired(final boolean encodeUrl)
+    {
+        urlEncodingDesired = encodeUrl;
+        return this;
+    }
 
     /**
-     * String containing a RegExp pattern which is checked on against the status code of the
-     * response. Accepts all 20x responses by default.
+     * Check if the URL is desired to be encoded or not.
+     *
+     * @return {@code true} if the URL is encoded (default), {@code false} otherwise
      */
-    private String statusPattern = "20.";
+    protected boolean isUrlEncodingDesired()
+    {
+        return urlEncodingDesired;
+    }
+    
+    /**
+     * Class logger.
+     */
+    private static final Logger LOG = LoggerFactory.getLogger(HttpRequestJmeter.class);
 
-    /** List of all validations which should be performed on the response. */
-    private final List<Validation> validations = new ArrayList<>();
+    /**
+     * The web client that is used by default for performing the requests.
+     */
+    private static final ThreadLocal<WebClient> WEB_CLIENT = new ThreadLocal<WebClient>()
+    {
+        @Override
+        protected WebClient initialValue()
+        {
+            // Ensure the thread-local is cleared at the end of a session.
+            // There is no need to close the web client as it will do so by itself.
+            Session.getCurrent().addShutdownListener(() -> WEB_CLIENT.remove());
 
-    /** List of all data extractions which should be performed on the response. */
-    private final List<StoragePrompt> storagePrompts = new ArrayList<>();
+            return new XltWebClient();
+        }
+    };
 
-    /** The request to be fired. */
-    private final HttpRequest httpRequest = new HttpRequest();
+    /**
+     * The timer name of this request.
+     */
+    protected String timerName;
 
+    /**
+     * Base URL used by this request for resolving relative URLs.
+     */
+    protected String baseUrl;
+
+    /**
+     * Relative URL of this request's target.
+     */
+    protected String relativeUrl;
+
+    /**
+     * Character set this request's content is encoded with.
+     */
+    protected Charset contentCharset;
+
+    /**
+     * In case this request submits a HTML form, this field describes how the form is encoded.
+     */
+    protected FormEncodingType encodingType;
+
+    /**
+     * The HTTP method of this request.
+     */
+    protected HttpMethod httpMethod;
+
+    /**
+     * The (additional) HTTP headers of this request.
+     */
+    protected final Map<String, String> headers = new HashMap<>();
+
+    /**
+     * The parameters of this request.
+     */
+    protected final List<NameValuePair> parameters = new LinkedList<>();
+
+    /**
+     * The body of this request as a string. Only valid for POST, PUT or PATCH requests. Setting a string body will
+     * unset a bytes body and vice versa.
+     */
+    protected String body;
+
+    /**
+     * The body of this request as a byte array. Only valid for POST, PUT or PATCH requests. Setting a string body will
+     * unset a bytes body and vice versa.
+     */
+    protected byte[] bytesBody;
+
+    /**
+     * Whether or not to allow this request to be cached during a page load.
+     */
+    protected boolean cachingEnabled;
+
+    /**
+     * Returns the default web client used for performing the requests. If no default web client has been set so far, a
+     * fresh web client instance will be created when this method is called for the first time.
+     *
+     * @return the web client used to perform the request
+     */
+    public static WebClient getDefaultWebClient()
+    {
+        return WEB_CLIENT.get();
+    }
+
+    /**
+     * Sets the default web client used for performing the requests.
+     *
+     * @return the web client used to perform the request
+     */
+    public static void setDefaultWebClient(final WebClient webClient)
+    {
+        WEB_CLIENT.set(webClient);
+    }
+
+    /**
+     * Creates a new request.
+     */
     public HttpRequestJmeter()
     {
-        // Hence we do not need the page of the previous action, we don't need to provide it
-        super(null, null);
-        final String timerName = getClass().getSimpleName();
-        handleTimerName(timerName);
-    }
-
-    public HttpRequestJmeter(final String timerName)
-    {
-        // Hence we do not need the page of the previous action, we don't need to provide it
-        super(null, null);
-        handleTimerName(timerName);
+        // Empty
     }
 
     /**
-     * Take care of the timer name and add the Site ID if desired.
+     * Creates a new request using the given time name.
      *
      * @param timerName
+     *            the timer name to use
      */
-    private void handleTimerName(final String timerName)
+    public HttpRequestJmeter(final String timerName)
     {
-        // Adjust action name if necessary, if we go with default and hence we don't rename with the
-        // site id
-        final String siteId = Context.get().getSite().id;
-        final String newTimerName = JMeterTestCase.getSiteSpecificName(timerName, siteId);
-
-        this.setTimerName(newTimerName);
-        httpRequest.timerName(newTimerName);
-    }
-
-    @Override
-    protected void execute() throws Exception
-    {
-        response = httpRequest.fire();
+        this.timerName = timerName;
     }
 
     /**
-     * Sets the base URL for this call.
+     * Creates a new request by using another request as template.
      *
-     * @param url
-     * @return
+     * @param other
+     *            the request to use as template
      */
-    public HttpRequestJmeter baseUrl(final String url)
+    public HttpRequestJmeter(final HttpRequestJmeter other)
     {
-        httpRequest.baseUrl(url);
+        timerName = other.timerName;
+        baseUrl = other.baseUrl;
+        relativeUrl = other.relativeUrl;
+        contentCharset = other.contentCharset;
+        encodingType = other.encodingType;
+        httpMethod = other.httpMethod;
+
+        headers.putAll(other.headers);
+        parameters.addAll(other.parameters);
+
+        body = other.body;
+        cachingEnabled = other.cachingEnabled;
+        loadAdditionalHeader = other.loadAdditionalHeader;
+    }
+
+    /**
+     * Sets the timer name to be used by this request.
+     *
+     * @param timerName
+     *            the timer name
+     */
+    public HttpRequestJmeter timerName(final String timerName)
+    {
+        this.timerName = timerName;
+
+        return this;
+    }
+
+    /**
+     * Sets the base URL to be used by this request.
+     *
+     * @param baseUrl
+     *            the base URL as string
+     */
+    public HttpRequestJmeter baseUrl(final String baseUrl)
+    {
+        this.baseUrl = baseUrl;
+
+        return this;
+    }
+
+    /**
+     * Sets the relative URL to be used by this request.
+     *
+     * @param relativeUrl
+     *            the relative URL as string
+     */
+    public HttpRequestJmeter relativeUrl(final String relativeUrl)
+    {
+        this.relativeUrl = relativeUrl;
+
+        return this;
+    }
+
+    /**
+     * Sets the HTTP method of this request.
+     *
+     * @param httpMethod
+     *            the HTTP method
+     */
+    public HttpRequestJmeter method(final HttpMethod httpMethod)
+    {
+        this.httpMethod = httpMethod;
+
+        return this;
+    }
+
+    /**
+     * Sets the content's character set.
+     *
+     * @param contentCharset
+     *            the character set the content sent by this request is content with
+     */
+    public HttpRequestJmeter charset(final Charset contentCharset)
+    {
+        this.contentCharset = contentCharset;
+
+        return this;
+    }
+
+    /**
+     * Sets the HTML form encoding type.
+     *
+     * @param encodingType
+     *            the form encoding type
+     */
+    public HttpRequestJmeter encodingType(final FormEncodingType encodingType)
+    {
+        this.encodingType = encodingType;
+
         return this;
     }
 
@@ -112,11 +332,88 @@ public class HttpRequestJmeter extends AbstractAction
      *            the name of the header
      * @param value
      *            the value of the header
-     * @return
      */
-    public HttpRequestJmeter header(final String name, final String value)
+    public HttpRequestJmeter header(final String name, String value)
     {
-        httpRequest.header(name, value);
+        if (StringUtils.isBlank(name))
+        {
+            throw new IllegalArgumentException("Header name must not be blank.");
+        }
+
+        if (value == null)
+        {
+            if (LOG.isDebugEnabled())
+            {
+                LOG.debug("Header value 'null' was converted into empty string for header name " + name);
+            }
+
+            value = StringUtils.EMPTY;
+        }
+
+        headers.put(name, value);
+
+        return this;
+    }
+
+    /**
+     * Sets the given request headers.
+     *
+     * @param additionalHeaders
+     *            the request headers to set
+     */
+    public HttpRequestJmeter headers(final List<NameValuePair> additionalHeaders)
+    {
+        additionalHeaders.stream().forEach(p -> header(p.getName(), p.getValue()));
+
+        return this;
+    }
+
+    /**
+     * Sets the given request headers.
+     *
+     * @param additionalHeaders
+     *            the request headers to set
+     */
+    public HttpRequestJmeter headers(final Map<String, String> additionalHeaders)
+    {
+        additionalHeaders.forEach((n, v) -> header(n, v));
+
+        return this;
+    }
+
+    /**
+     * Removes the request header for the given name.
+     *
+     * @param name
+     *            the name of the header to remove
+     */
+    public HttpRequestJmeter removeHeader(final String name)
+    {
+        headers.remove(name);
+
+        return this;
+    }
+
+    /**
+     * Removes all of the given request headers.
+     *
+     * @param headerNames
+     *            the name of the headers to remove
+     */
+    public HttpRequestJmeter removeHeaders(final List<String> headerNames)
+    {
+        headerNames.forEach(n -> removeHeader(n));
+
+        return this;
+    }
+
+    /**
+     * Removes all request headers.
+     */
+    public HttpRequestJmeter removeHeaders()
+    {
+        headers.clear();
+
         return this;
     }
 
@@ -127,11 +424,43 @@ public class HttpRequestJmeter extends AbstractAction
      *            the name of the parameter to add
      * @param value
      *            the value of the parameter to add
-     * @return
      */
-    public HttpRequestJmeter param(final String name, final String value)
+    public HttpRequestJmeter param(final String name, String value)
     {
-        httpRequest.param(name, value);
+        return param(new NameValuePair(name, value));
+    }
+
+    /**
+     * Adds a request parameter with the given name/value pair.
+     *
+     * @param nameValuePair
+     *            the name/value pair representing the parameter to add
+     */
+    public HttpRequestJmeter param(NameValuePair nameValuePair)
+    {
+        String name = nameValuePair.getName();
+
+        if (StringUtils.isBlank(name))
+        {
+            throw new IllegalArgumentException("Name of parameter must not be blank.");
+        }
+
+        // validate name/value pairs only, but not subclasses like key/data pairs, etc.
+        if (nameValuePair.getClass() == NameValuePair.class)
+        {
+            if (nameValuePair.getValue() == null)
+            {
+                if (LOG.isDebugEnabled())
+                {
+                    LOG.debug("Value of parameter '" + name + "' was converted from 'null' to an empty string");
+                }
+
+                nameValuePair = new NameValuePair(name, StringUtils.EMPTY);
+            }
+        }
+
+        parameters.add(nameValuePair);
+
         return this;
     }
 
@@ -140,37 +469,24 @@ public class HttpRequestJmeter extends AbstractAction
      *
      * @param params
      *            the parameters to add
-     * @return
      */
     public HttpRequestJmeter params(final List<NameValuePair> params)
     {
-        httpRequest.params(params);
+        params.forEach(this::param);
+
         return this;
     }
 
     /**
-     * Sets the given request headers.
+     * Adds all of the given request parameters.
      *
-     * @param headers
-     *            the request headers to set
-     * @return
+     * @param params
+     *            the parameters to add
      */
-    public HttpRequestJmeter headers(final List<NameValuePair> headers)
+    public HttpRequestJmeter params(final Map<String, String> params)
     {
-        httpRequest.headers(headers);
-        return this;
-    }
+        params.forEach((n, v) -> param(n, v));
 
-    /**
-     * Removes the request header for the given name.
-     *
-     * @param name
-     *            he name of the header to remove
-     * @return
-     */
-    public HttpRequestJmeter removeHeader(final String name)
-    {
-        httpRequest.removeHeader(name);
         return this;
     }
 
@@ -179,334 +495,380 @@ public class HttpRequestJmeter extends AbstractAction
      *
      * @param name
      *            the name of the parameter to remove
-     * @return
      */
     public HttpRequestJmeter removeParam(final String name)
     {
-        httpRequest.removeParam(name);
+        parameters.removeIf(p -> p.getName().equals(name));
+
         return this;
     }
 
     /**
-     * Sets the relative URL to be used by this request.
+     * Removes all of the given request parameters.
      *
-     * @param url
-     *            the relative URL as string
-     * @return
+     * @param paramNames
+     *            the names of the parameters to remove
      */
-    public HttpRequestJmeter relativeUrl(final String url)
+    public HttpRequestJmeter removeParams(final List<String> paramNames)
     {
-        httpRequest.relativeUrl(url);
+        paramNames.forEach(n -> removeParam(n));
+
         return this;
     }
 
     /**
-     * Sets the body of this request.
-     *
+     * Removes all request parameters.
+     */
+    public HttpRequestJmeter removeParams()
+    {
+        parameters.clear();
+
+        return this;
+    }
+
+    /**
+     * Sets the given string as the textual body of this request. Any textual or binary body set previously will be
+     * discarded.
      *
      * @param body
      *            the request body as string
-     * @return
      */
     public HttpRequestJmeter body(final String body)
     {
-        httpRequest.body(body);
+        this.body = body;
+        this.bytesBody = null;
+
         return this;
     }
 
     /**
-     * Sets the HTTP method of this request.
+     * Sets the given byte array as the binary body of this request. Any textual or binary body set previously will be
+     * discarded.
      *
-     * @param method
-     *            the HTTP method
-     * @return
+     * @param bytes
+     *            the request body as byte array
      */
-    public HttpRequestJmeter method(final String method)
+    public HttpRequestJmeter body(final byte[] bytes)
     {
-        httpRequest.method(HttpMethod.valueOf(method));
+        this.bytesBody = bytes;
+        this.body = null;
+
         return this;
     }
 
-    @Override
-    protected void postValidate() throws Exception
+    /**
+     * Sets the content of the given file as the binary body of this request. Any textual or binary body set previously
+     * will be discarded.
+     * <p>
+     * Note: This method reads the file completely into memory and afterwards calls {@link #body(byte[])} with the data
+     * read.
+     *
+     * @param file
+     *            the file from which to read the request body
+     * @throws IOException
+     *             if the file could not be read
+     */
+    public HttpRequestJmeter body(final File file) throws IOException
     {
-        Assert.assertNotNull("Response not received", response);
-        if (StringUtils.isNotBlank(statusPattern))
+        final byte[] bytes = FileUtils.readFileToByteArray(file);
+
+        return body(bytes);
+    }
+
+    /**
+     * Sets the content of the given input stream as the binary body of this request. Any textual or binary body set
+     * previously will be discarded.
+     * <p>
+     * Note: This method reads the input stream completely into memory and afterwards calls {@link #body(byte[])} with
+     * the data read. The input stream will not be closed.
+     *
+     * @param inputStream
+     *            the input stream from which to read the request body
+     * @throws IOException
+     *             if the input stream could not be read
+     */
+    public HttpRequestJmeter body(final InputStream inputStream) throws IOException
+    {
+        final byte[] bytes = IOUtils.toByteArray(inputStream);
+
+        return body(bytes);
+    }
+
+    /**
+     * Whether or not to allow this request to be cached during a page load
+     *
+     * @param cachingEnabled
+     *            whether or not to allow this request to be cached during a page load
+     */
+    public HttpRequestJmeter caching(final boolean cachingEnabled)
+    {
+        this.cachingEnabled = cachingEnabled;
+
+        return this;
+    }
+
+    /**
+     * Performs this request and returns the resulting response.
+     *
+     * @return response of this request
+     * @throws IOException
+     *             thrown on HTTP transmission failure
+     * @throws URISyntaxException
+     *             thrown on failure to build the request URl
+     */
+    public HttpResponse fire() throws IOException, URISyntaxException
+    {
+        return fire(getDefaultWebClient());
+    }
+
+    /**
+     * Performs this request using the given web client and returns the resulting response.
+     *
+     * @param webClient
+     *            the web client to use for performing the request
+     * @return response of this request
+     * @throws IOException
+     *             thrown on transmission failure
+     * @throws URISyntaxException
+     *             thrown on failure to build the request URl
+     */
+    public HttpResponse fire(final WebClient webClient) throws IOException, URISyntaxException
+    {
+        if (webClient == null)
         {
-            Assert.assertTrue("Response code does not match expected pattern " + statusPattern, String.valueOf(response.getStatusCode()).matches(statusPattern));
+            throw new IllegalArgumentException("Can not utilize invalid web client.");
         }
 
-        ReadContext ctx = null;
-        if (!validations.isEmpty())
+        if (StringUtils.isNotBlank(timerName) && (webClient instanceof XltWebClient))
         {
-            ctx = JsonPath.parse(response.getContentAsString());
-
-            for (final Validation validation : validations)
-            {
-                handleValidation(validation, ctx);
-            }
+            ((XltWebClient) webClient).setTimerName(timerName.trim());
         }
 
-        if (!storagePrompts.isEmpty())
-        {
-            if (ctx == null)
-            {
-                ctx = JsonPath.parse(response.getContentAsString());
-            }
-            for (final StoragePrompt storagePrompt : storagePrompts)
-            {
-                handleStore(storagePrompt, ctx);
-            }
+        final WebRequest webRequest = buildWebRequest();
+        final WebResponse webResponse = webClient.loadWebResponse(webRequest);
 
-        }
-    }
-
-    /**
-     * Handles a storage Promt. Extracts the data from the response and puts it into the data store
-     * with the given name.
-     *
-     * @param storagePrompt
-     * @param ctx
-     */
-    private void handleStore(final StoragePrompt storagePrompt, final ReadContext ctx)
-    {
-        Assert.assertTrue("Response " + storagePrompt.jsonPath + " does not exists.", ctx.read(storagePrompt.jsonPath) != null);
-        Context.get().testData.store.put(storagePrompt.name, ctx.read(storagePrompt.jsonPath));
-    }
-
-    /**
-     * Match the status of the response against a given pattern.
-     *
-     * @param pattern
-     *            The RegExp pattern to check the status against. E.g. "20.", "404|401", ...
-     * @return
-     */
-    public HttpRequestJmeter assertStatusPattern(final String pattern)
-    {
-        this.statusPattern = pattern;
-        return this;
-    }
-
-    /**
-     * Check the response status code against this code.
-     *
-     * @param statusCode
-     *            the HTTP status code we expect
-     * @return
-     */
-    public HttpRequestJmeter assertStatus(final int statusCode)
-    {
-        this.statusPattern = String.valueOf(statusCode);
-        return this;
-    }
-
-    /**
-     * Handles a stored validation. Extracts the value from the response and checks against the
-     * expectation.
-     *
-     * @param validation
-     * @param ctx
-     */
-    private void handleValidation(final Validation validation, final ReadContext ctx)
-    {
-        switch (validation.validationType) {
-            case EXISTS:
-                Assert.assertTrue(validation.message != null ? validation.message : "Response " + validation.jsonPath + " does not exists.", ctx.read(validation.jsonPath) != null);
-                break;
-            case NOT_EQUALS:
-                Assert.assertNotEquals(
-                                validation.message != null ? validation.message : "Response " + validation.jsonPath + " does equals " + validation.expectedValue + "but should not",
-                                validation.expectedValue,
-                                ctx.read(validation.jsonPath));
-                break;
-            case EQUALS:
-                Assert.assertEquals(validation.message != null ? validation.message : "Response " + validation.jsonPath + " does not equals " + validation.expectedValue,
-                                validation.expectedValue,
-                                ctx.read(validation.jsonPath));
-                break;
-
-            default:
-                break;
-        }
-    }
-
-    /**
-     * Store a value from the response, which can be found at the given JSON path. The data will be
-     * stored in the context data store and can be retrieved via Context.get().getStored(name);
-     *
-     * @param jsonPath
-     *            the path of the value in the response
-     * @param variableName
-     *            the name of the variable under which the value should be stored
-     * @return
-     */
-    public HttpRequestJmeter storeResponseValue(final String jsonPath, final String variableName)
-    {
-        final StoragePrompt storagePrompt = new StoragePrompt();
-
-        storagePrompt.jsonPath = jsonPath;
-        storagePrompt.name = variableName;
-        this.storagePrompts.add(storagePrompt);
-
-        return this;
-    }
-
-    /**
-     * Adds a validation to the list.
-     *
-     * @param message
-     * @param jsonPath
-     * @param expectedValue
-     * @param validationType
-     * @return
-     */
-    private HttpRequestJmeter addValidation(final String message, final String jsonPath, final Object expectedValue, final ValidationType validationType)
-    {
-        final Validation validation = new Validation();
-        validation.message = message;
-        validation.jsonPath = jsonPath;
-        validation.expectedValue = expectedValue;
-        validation.validationType = validationType;
-
-        this.validations.add(validation);
-        return this;
-    }
-
-    /**
-     * Validate the response content against an expected value. Checks if the value at the given
-     * JSON path equals the given value.
-     *
-     * @param message
-     *            Additional error message if the validation fails
-     * @param jsonPath
-     *            The path under which the response will contain the value to validate
-     * @param expectedValue
-     *            The expected value
-     * @return
-     */
-    public HttpRequestJmeter validateEquals(final String message, final String jsonPath, final Object expectedValue)
-    {
-        addValidation(message, jsonPath, expectedValue, ValidationType.EQUALS);
-        return this;
-    }
-
-    /**
-     * Validate the response content against an expected value. Checks if the value at the given
-     * JSON path equals the given value.
-     *
-     * @param jsonPath
-     *            The path under which the response will contain the value to validate
-     * @param expectedValue
-     *            The expected value
-     * @return
-     */
-    public HttpRequestJmeter validateEquals(final String jsonPath, final Object expectedValue)
-    {
-        return validateEquals(null, jsonPath, expectedValue);
-    }
-
-    /**
-     * Validate the response content against an expected value. Checks if the value at the given
-     * JSON path does NOT equals the given value.
-     *
-     * @param message
-     *            Additional error message if the validation fails
-     * @param jsonPath
-     *            The path under which the response will contain the value to validate
-     * @param expectedValue
-     *            The expected value
-     * @return
-     */
-    public HttpRequestJmeter validateNotEquals(final String message, final String jsonPath, final Object expectedValue)
-    {
-        addValidation(message, jsonPath, expectedValue, ValidationType.NOT_EQUALS);
-        return this;
-    }
-
-    /**
-     * Validate the response content against an expected value. Checks if the value at the given
-     * JSON path does NOT equals the given value.
-     *
-     * @param jsonPath
-     *            The path under which the response will contain the value to validate
-     * @param expectedValue
-     *            The expected value
-     * @return
-     */
-    public HttpRequestJmeter validateNotEquals(final String jsonPath, final Object expectedValue)
-    {
-        return validateNotEquals(null, jsonPath, expectedValue);
-    }
-
-    /**
-     * Validate the response content. Checks if the value at the given JSON path does exist.
-     *
-     * @param jsonPath
-     *            The path under which the response will contain the value to validate
-     * @return
-     */
-    public HttpRequestJmeter validateExists(final String jsonPath)
-    {
-        return validateExists(null, jsonPath);
-    }
-
-    /**
-     * Validate the response content. Checks if the value at the given JSON path does exist.
-     *
-     * @param message
-     *            Additional error message if the validation fails
-     * @param jsonPath
-     *            The path under which the response will contain the value to validate
-     * @return
-     */
-    public HttpRequestJmeter validateExists(final String message, final String jsonPath)
-    {
-        addValidation(message, jsonPath, null, ValidationType.EXISTS);
-        return this;
-
-    }
-
-    @Override
-    public void preValidate() throws Exception
-    {
+        return new HttpResponse(webResponse);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void run() throws Throwable
+    public HttpRequestJmeter clone()
     {
-        try
+        return new HttpRequestJmeter(this);
+    }
+
+    /**
+     * Builds a new HtmlUnit request using this request's settings.
+     *
+     * @return this request as HtmlUnit request
+     * @throws MalformedURLException
+     *             thrown on failure to build this request's target URL
+     * @throws URISyntaxException
+     *             thrown on failure to transform the request URL to an URI
+     */
+    protected WebRequest buildWebRequest() throws MalformedURLException, URISyntaxException
+    {
+        final boolean methodSupportsBody = (httpMethod == HttpMethod.POST || httpMethod == HttpMethod.PUT ||
+                                            httpMethod == HttpMethod.PATCH || httpMethod == HttpMethod.DELETE);
+
+        // UTF-8 standard harset
+        final Charset charset = StandardCharsets.UTF_8;
+        
+        // basic parameter validation
+        Assert.assertTrue("Base URL must not be null or blank", StringUtils.isNotBlank(baseUrl));
+        Assert.assertTrue("Can not use request parameters in conjunction with request body in POST, PUT, PATCH, or DELETE requests",
+                          !methodSupportsBody || (body == null && bytesBody == null) || parameters.isEmpty());
+
+        // Evaluate URL and create web request
+        URL url;
+        if (StringUtils.isBlank(relativeUrl))
         {
-            super.run();
+            url = new URI(baseUrl).toURL();
         }
-        finally
+        else
         {
-            // add an empty "page" as the result of this action
-            SessionImpl.getCurrent().getRequestHistory().add(getTimerName());
+            url = new URI(UrlUtils.resolveUrl(baseUrl, relativeUrl)).toURL();
+        }
+        
+        final WebRequest webRequest = new WebRequest(url);
+        
+        webRequest.setCharset(charset);
+        // Set charset
+        
+        // Handle method
+        if (httpMethod != null)
+        {
+            webRequest.setHttpMethod(httpMethod);
+        }
+
+        // Handle headers
+        if (contentCharset != null)
+        {
+            webRequest.setCharset(contentCharset);
+        }
+
+        if (methodSupportsBody && encodingType != null)
+        {
+            webRequest.setEncodingType(encodingType);
+        }
+
+        if (!headers.isEmpty() &&
+            !loadAdditionalHeader)
+        {
+            // clean slate
+            webRequest.setAdditionalHeaders(new HashMap<String, String>());
+            webRequest.setAdditionalHeaders(headers);
+
+            // JMeter does not add content type to not mandatory methods, per default!
+            if (!methodSupportsBody)
+            {
+                webRequest.removeAdditionalHeader(HTTPConstants.HEADER_CONTENT_TYPE);
+            }
+        }
+        // if not managed or stated otherwise, we use the default(previous) values
+        else if(!headers.isEmpty() &&
+                loadAdditionalHeader)
+        {
+            webRequest.setAdditionalHeaders(headers);
+        }
+
+        // Handle parameters
+        handleParameters(webRequest, parameters, methodSupportsBody);
+        
+        // Handle body
+        if (methodSupportsBody)
+        {
+            // Assumes no parameters have been specified
+
+            if (body != null)
+            {
+                webRequest.setRequestBody(body);
+            }
+            else if (bytesBody != null)
+            {
+                // Since HtmlUnit accepts only strings as body, we have to cheat a little here.
+
+                // set bytes as ISO-8859-1-encoded string which, on the wire, looks the same as the bytes
+                final String bytesAsString = new String(bytesBody, StandardCharsets.ISO_8859_1);
+                webRequest.setRequestBody(bytesAsString);
+
+                // override any custom charset
+                webRequest.setCharset(StandardCharsets.ISO_8859_1);
+            }
+        }
+
+        if (!cachingEnabled)
+        {
+            webRequest.setDocumentRequest();
+        }
+        
+        /*
+         * Take care of encoding if desired
+         */
+        // In case URL encoding is desired, we have to take care, if the basic URL DOES NOT come from a regular page.
+        // An URL from a page is encoded by default.
+        if (isUrlEncodingDesired())
+        {
+            webRequest.setUrl((org.htmlunit.util.UrlUtils.encodeUrl(url, charset)));
+        }
+        // In case we NO NOT want an encoded URL, we can ignore URLs without page context, as those are plain and have not been encoded yet. If we've got the basic URL from a page (which gave us an encoded URL by default), we have to take care of making encoding undone.
+        else if (!isUrlEncodingDesired())
+        {
+            final String decode = URLDecoder.decode(url.toString(), charset);
+            webRequest.setUrl(new URI(decode).toURL());
+        }
+
+        return webRequest;
+    }
+
+    /**
+     * Sets the given custom parameters at the web request taking already existing URL query parameters into
+     * consideration.
+     *
+     * @param webRequest
+     *            the web request
+     * @param parameters
+     *            the custom request parameters
+     * @param methodSupportsBody
+     *            whether the HTTP method may have a request body
+     */
+    private void handleParameters(final WebRequest webRequest, final List<NameValuePair> parameters, final boolean methodSupportsBody)
+        throws URISyntaxException, MalformedURLException
+    {
+        if (!parameters.isEmpty())
+        {
+            if (methodSupportsBody)
+            {
+                // remove any parameter from the URL that is also part of the custom parameters
+                if (StringUtils.isNotEmpty(webRequest.getUrl().getQuery()))
+                {
+                    adjustUrl(webRequest, parameters, false);
+                }
+
+                // set custom parameters
+                webRequest.setRequestParameters(parameters);
+            }
+            else
+            {
+                /*
+                 * #3795: Don't set custom parameters at the web request in this case. The final URL would be built in
+                 * transient form only and only right before sending the request to the wire, so XLT is not able to pick
+                 * it up. Hence, we build the final URL now.
+                 */
+
+                // remove any parameter from the URL that is also part of the custom parameters and append all custom
+                // parameters to the URL
+                adjustUrl(webRequest, parameters, true);
+            }
         }
     }
 
-    /** Internal helper enum to differ types of validations. */
-    private enum ValidationType
+    /**
+     * Updates the URL stored at the given web request such that:
+     * <ol>
+     * <li>Any query parameter that is contained in the passed list of custom parameters is removed from the request
+     * URL.</li>
+     * <li>Optionally, all custom parameters are appended to the query string of the request URL.</li>
+     * </ol>
+     * 
+     * @param webRequest
+     *            the web request
+     * @param parameters
+     *            the custom request parameters
+     * @param addParameters
+     *            whether to add the custom request parameters to the URL
+     * @throws MalformedURLException
+     * @throws URISyntaxException
+     */
+    private void adjustUrl(WebRequest webRequest, final List<NameValuePair> parameters, boolean addParameters)
+        throws MalformedURLException, URISyntaxException
     {
-        EXISTS, EQUALS, NOT_EQUALS;
+        final URL url = webRequest.getUrl();
+        final URIBuilder uriBuilder = new URIBuilder(url.toURI());
+
+        // remove URL parameters that are contained in the custom parameters
+        final List<org.apache.http.NameValuePair> urlParameters = uriBuilder.getQueryParams();
+        parameters.forEach(p -> urlParameters.removeIf(u -> u.getName().equals(p.getName())));
+        uriBuilder.setParameters(urlParameters);
+
+        // optionally add all custom parameters to the URL
+        if (addParameters)
+        {
+            parameters.forEach(p -> uriBuilder.addParameter(p.getName(), p.getValue()));
+        }
+
+        // finally build and set the new URL
+        webRequest.setUrl(new URL(uriBuilder.toString()));
     }
 
-    /** Internal data object to store a validation promt. */
-    private class Validation
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String toString()
     {
-        ValidationType validationType;
-        Object expectedValue;
-        String jsonPath;
-        String message;
-    }
-
-    /** Internal data object to store a storage promt. */
-    private class StoragePrompt
-    {
-        String name;
-        String jsonPath;
+        return ReflectionToStringBuilder.toString(this);
     }
 }

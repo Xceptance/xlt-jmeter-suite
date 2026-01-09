@@ -31,6 +31,7 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 import java.util.regex.PatternSyntaxException;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.commons.codec.binary.Base64;
@@ -40,7 +41,6 @@ import org.apache.http.entity.ContentType;
 import org.apache.http.entity.mime.HttpMultipartMode;
 import org.apache.http.entity.mime.MultipartEntityBuilder;
 import org.apache.jmeter.config.Arguments;
-import org.apache.jmeter.config.ConfigTestElement;
 import org.apache.jmeter.protocol.http.control.AuthManager;
 import org.apache.jmeter.protocol.http.control.Authorization;
 import org.apache.jmeter.protocol.http.control.Cookie;
@@ -52,6 +52,7 @@ import org.apache.jmeter.protocol.http.parser.LinkExtractorParser;
 import org.apache.jmeter.protocol.http.sampler.HTTPSampleResult;
 import org.apache.jmeter.protocol.http.sampler.HTTPSamplerProxy;
 import org.apache.jmeter.protocol.http.util.ConversionUtils;
+import org.apache.jmeter.protocol.http.util.HTTPArgument;
 import org.apache.jmeter.protocol.http.util.HTTPConstantsInterface;
 import org.apache.jmeter.protocol.http.util.HTTPFileArg;
 import org.apache.jmeter.samplers.SampleResult;
@@ -66,7 +67,7 @@ import org.apache.oro.text.regex.Perl5Matcher;
 import org.htmlunit.HttpMethod;
 
 import com.xceptance.loadtest.data.util.Context;
-import com.xceptance.xlt.engine.httprequest.HttpRequest;
+import com.xceptance.loadtest.data.util.HttpRequestJmeter;
 import com.xceptance.xlt.engine.httprequest.HttpResponse;
 
 /**
@@ -169,27 +170,35 @@ public class HttpRequestHandler
             return pack.getSampler().sample(null);
         }
 
-        List<ConfigTestElement> configs = pack.getConfigs();
-
-        // get all relevant config elements
-        for (ConfigTestElement element : configs)
+//        List<ConfigTestElement> configs = pack.getConfigs();
+//        // get all relevant config elements
+//        for (ConfigTestElement element : configs)
+//        {
+//            if (element instanceof HeaderManager)
+//            {
+//                hm.add((HeaderManager)element);
+//            }
+//            if (element instanceof AuthManager)
+//            {
+//                am = (AuthManager) element;
+//            }
+//            if (element instanceof CookieManager)
+//            {
+//                cm =  (CookieManager) element;
+//            }
+//        }
+        
+        // Handle the different manager for HttpRequests
+        // avoid null or empty list
+        if (sampler.getHeaderManager() != null)
         {
-            if (element instanceof HeaderManager)
-            {
-                hm.add((HeaderManager)element);
-            }
-            if (element instanceof AuthManager)
-            {
-                am = (AuthManager) element;
-            }
-            if (element instanceof CookieManager)
-            {
-                cm =  (CookieManager) element;
-            }
+            hm.add(sampler.getHeaderManager());
         }
+        am = sampler.getAuthManager();
+        cm = sampler.getCookieManager();
 
         // build the request
-        HttpRequest request = new HttpRequest().timerName(requestName)
+        HttpRequestJmeter request = new HttpRequestJmeter().timerName(requestName)
                                                .baseUrl(baseUrl)
                                                .method(HttpMethod.valueOf(method));
 
@@ -206,6 +215,10 @@ public class HttpRequestHandler
 
         if (hm != null)
         {
+            // JMter managed header, we do not rely on the header Manager from XLT in case we have a managed header!
+            request.additonalHeader(false);
+            request.removeHeaders();
+            
             // add header data
             addHeaderData(request, hm, sampler);
         }
@@ -225,7 +238,7 @@ public class HttpRequestHandler
         if (sampler.getFollowRedirects() ||
             sampler.getAutoRedirects())
         {
-            HttpRequest.getDefaultWebClient().getOptions().setRedirectEnabled(true);
+            HttpRequestJmeter.getDefaultWebClient().getOptions().setRedirectEnabled(true);
         }
         
         // fire the request
@@ -236,7 +249,8 @@ public class HttpRequestHandler
 
         // set the XLT response into JMeter
         resultPack.setResponseData(response.getContentAsString(), null);
-        resultPack.setResponseHeaders(response.getHeaders().toString());
+        // map the data into the CRLF standard, which is needed for JMeter to handle the data
+        resultPack.setResponseHeaders(response.getHeaders().stream().map(n -> n.toString()).collect(Collectors.joining("\r\n")));
         // retrieve the last request header data, important for JMeter assertion handling
         resultPack.setRequestHeaders(additionalHeaders.toString());
         resultPack.setResponseCode(String.valueOf(response.getStatusCode())); // set status code for assertion check
@@ -338,7 +352,7 @@ public class HttpRequestHandler
                                 continue;
                             }
 
-                            new HttpRequest().timerName(requestName).baseUrl(url.toString())
+                            new HttpRequestJmeter().timerName(requestName).baseUrl(url.toString())
                                              .method(HttpMethod.GET)
                                              .fire();
                         }
@@ -473,7 +487,7 @@ public class HttpRequestHandler
      * @param username
      * @param password
      */
-    private static void setBasicAuthenticationHeader(HttpRequest request, final String username, final String password)
+    private static void setBasicAuthenticationHeader(HttpRequestJmeter request, final String username, final String password)
     {
         // Is a username for Basic Authentication configured?
         if (StringUtils.isNotBlank(username))
@@ -493,17 +507,24 @@ public class HttpRequestHandler
      * @param requestData
      * @return HttpRequest
      */
-    private static void addArgumentData(HttpRequest request, HTTPSamplerProxy requestData)
+    private static void addArgumentData(HttpRequestJmeter request, HTTPSamplerProxy requestData)
     {
         // check and add arguments if there are any
         Arguments arguments = requestData.getArguments();
         boolean postBodyRaw = requestData.getPostBodyRaw();
+        boolean useEncoding = false;
         if (arguments.getArgumentCount() > 0 && !postBodyRaw)
         {
+            // to get the correct argument and flag
+            int index = 0;
             Map<String, String> argumentsAsMap = arguments.getArgumentsAsMap();
             for (Map.Entry<String, String> entry : argumentsAsMap.entrySet())
             {
-                request.param(entry.getKey(), entry.getValue());
+                // the strip() is needed if we have groovy script created variables!
+                request.param(entry.getKey(), entry.getValue().strip());
+                HTTPArgument arg = (HTTPArgument) arguments.getArgument(index);
+                useEncoding |= arg.isAlwaysEncoded();
+                index++;
             };
         }
         else if (postBodyRaw)
@@ -512,6 +533,8 @@ public class HttpRequestHandler
             Map<String, String> argumentsAsMap = arguments.getArgumentsAsMap();
             request.body(String.valueOf(argumentsAsMap.entrySet().iterator().next().getValue()));
         }
+
+        request.urlEncodingDesired(useEncoding);
     }
 
     /**
@@ -521,7 +544,7 @@ public class HttpRequestHandler
      * @param headerData
      * @return
      */
-    private static void addHeaderData(HttpRequest request, List<HeaderManager> headerData, HTTPSamplerProxy sampler)
+    private static void addHeaderData(HttpRequestJmeter request, List<HeaderManager> headerData, HTTPSamplerProxy sampler)
     {
         // transform header keys/values from loaded data to request confirm data
         headerData.forEach(e ->
@@ -556,7 +579,7 @@ public class HttpRequestHandler
      * @param requestData JMeter request data
      * @throws Exception
      */
-    private static void handleFileUpload(HttpRequest request, HTTPSamplerProxy requestData) throws Exception
+    private static void handleFileUpload(HttpRequestJmeter request, HTTPSamplerProxy requestData) throws Exception
     {
         // check of we need to handle file upload, otherwise simply return the request
         if (requestData.getHTTPFileCount() > 0 &&
@@ -621,7 +644,7 @@ public class HttpRequestHandler
     private static void handleCookies(CookieManager cm)
     {
         // XLT web driver cookie manager
-        org.htmlunit.CookieManager cookieManager = HttpRequest.getDefaultWebClient().getCookieManager();
+        org.htmlunit.CookieManager cookieManager = HttpRequestJmeter.getDefaultWebClient().getCookieManager();
 
         for (int index = 0; index < cm.getCookieCount(); index++)
         {
