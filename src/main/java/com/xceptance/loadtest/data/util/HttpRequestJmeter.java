@@ -860,7 +860,7 @@ public class HttpRequestJmeter
         }
 
         // finally build and set the new URL
-        webRequest.setUrl(new URL(uriBuilder.toString()));
+        webRequest.setUrl(new URI(uriBuilder.toString()).toURL());
     }
 
     /**
