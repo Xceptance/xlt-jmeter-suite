@@ -169,24 +169,6 @@ public class HttpRequestHandler
             // let JMeter handle other types
             return pack.getSampler().sample(null);
         }
-
-//        List<ConfigTestElement> configs = pack.getConfigs();
-//        // get all relevant config elements
-//        for (ConfigTestElement element : configs)
-//        {
-//            if (element instanceof HeaderManager)
-//            {
-//                hm.add((HeaderManager)element);
-//            }
-//            if (element instanceof AuthManager)
-//            {
-//                am = (AuthManager) element;
-//            }
-//            if (element instanceof CookieManager)
-//            {
-//                cm =  (CookieManager) element;
-//            }
-//        }
         
         // Handle the different manager for HttpRequests
         // avoid null or empty list
