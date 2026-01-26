@@ -33,17 +33,29 @@
 				<artifactId>maven-javadoc-plugin</artifactId>
 				<version>3.4.1</version>
 			</plugin>
-
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-dependency-plugin</artifactId>
+				<version>3.9.0</version>
+				<executions>
+					<!-- Automatically copy all non-provided dependencies to "target/dependency" when compiling. This ensures that
+                        they are present when the test suite is about to be uploaded to the agent machines. -->
+					<execution>
+						<id>copy-dependencies</id>
+						<phase>compile</phase>
+						<goals>
+							<goal>copy-dependencies</goal>
+						</goals>
+						<configuration>
+							<excludeScope>provided</excludeScope>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
 			<plugin>
 				<groupId>com.lazerycode.jmeter</groupId>
 				<artifactId>jmeter-maven-plugin</artifactId>
 				<version>2.9.0</version>
-			</plugin>
-
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-dependency-plugin</artifactId>
-				<version>3.6.0</version>
 			</plugin>
 		</plugins>
 	</build>
@@ -130,13 +142,13 @@
         <dependency>
             <groupId>com.xceptance</groupId>
             <artifactId>testsuite-foundation</artifactId>
-            <version>0.0.6</version>
+            <version>1.3.2</version>
         </dependency>
 
         <dependency>
             <groupId>com.xceptance</groupId>
             <artifactId>testsuite-addons</artifactId>
-            <version>0.0.4</version>
+            <version>1.1.0</version>
         </dependency>
 
 		<dependency>
@@ -156,7 +168,13 @@
 			<artifactId>commons-jexl3</artifactId>
 			<version>3.2.1</version>
 		</dependency>
-
+		<!-- Source: https://mvnrepository.com/artifact/commons-lang/commons-lang -->
+		<dependency>
+			<groupId>commons-lang</groupId>
+			<artifactId>commons-lang</artifactId>
+			<version>2.6</version>
+			<scope>compile</scope>
+		</dependency>
 	</dependencies>
 
 	<organization>
