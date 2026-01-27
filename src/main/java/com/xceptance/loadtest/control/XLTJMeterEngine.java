@@ -15,22 +15,20 @@
  */
 package com.xceptance.loadtest.control;
 
-import java.io.File;
-import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
+import com.xceptance.loadtest.data.util.Actions;
+import com.xceptance.loadtest.data.util.HttpRequestJmeter;
+import com.xceptance.loadtest.jmeter.util.AssertionHandler;
+import com.xceptance.loadtest.jmeter.util.HttpRequestHandler;
+import com.xceptance.loadtest.jmeter.util.XLTJMeterUtils;
+import com.xceptance.xlt.api.engine.Session;
+import com.xceptance.xlt.api.util.XltLogger;
+import com.xceptance.xlt.api.util.XltProperties;
+import com.xceptance.xlt.api.util.XltRandom;
+import com.xceptance.xlt.common.XltConstants;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.jmeter.config.ConfigElement;
-import org.apache.jmeter.control.Controller;
-import org.apache.jmeter.control.LoopController;
-import org.apache.jmeter.control.TransactionController;
-import org.apache.jmeter.control.TransactionSampler;
+import org.apache.jmeter.config.RandomVariableConfig;
+import org.apache.jmeter.control.*;
 import org.apache.jmeter.engine.PreCompiler;
 import org.apache.jmeter.engine.StandardJMeterEngine;
 import org.apache.jmeter.engine.TurnElementsOn;
@@ -45,16 +43,7 @@ import org.apache.jmeter.testbeans.TestBeanHelper;
 import org.apache.jmeter.testelement.TestElement;
 import org.apache.jmeter.testelement.TestIterationListener;
 import org.apache.jmeter.testelement.TestStateListener;
-import org.apache.jmeter.threads.AbstractThreadGroup;
-import org.apache.jmeter.threads.FindTestElementsUpToRootTraverser;
-import org.apache.jmeter.threads.JMeterContext;
-import org.apache.jmeter.threads.JMeterContextService;
-import org.apache.jmeter.threads.JMeterThread;
-import org.apache.jmeter.threads.JMeterVariables;
-import org.apache.jmeter.threads.PostThreadGroup;
-import org.apache.jmeter.threads.SamplePackage;
-import org.apache.jmeter.threads.SetupThreadGroup;
-import org.apache.jmeter.threads.TestCompiler;
+import org.apache.jmeter.threads.*;
 import org.apache.jmeter.threads.ThreadGroup;
 import org.apache.jmeter.util.JMeterUtils;
 import org.apache.jorphan.collections.HashTree;
@@ -64,15 +53,9 @@ import org.apache.jorphan.util.JMeterStopTestException;
 import org.apiguardian.api.API;
 import org.junit.Assert;
 
-import com.xceptance.loadtest.data.util.Actions;
-import com.xceptance.loadtest.data.util.HttpRequestJmeter;
-import com.xceptance.loadtest.jmeter.util.AssertionHandler;
-import com.xceptance.loadtest.jmeter.util.HttpRequestHandler;
-import com.xceptance.loadtest.jmeter.util.XLTJMeterUtils;
-import com.xceptance.xlt.api.engine.Session;
-import com.xceptance.xlt.api.util.XltLogger;
-import com.xceptance.xlt.api.util.XltProperties;
-import com.xceptance.xlt.common.XltConstants;
+import java.io.File;
+import java.lang.reflect.Field;
+import java.util.*;
 
 /**
  * This class is based on {@link StandardJMeterEngine}. Additional it uses parts of the {@link JMeterThread} for the usage in XLT.
@@ -957,6 +940,8 @@ public class XLTJMeterEngine extends StandardJMeterEngine
 	 */
 	private IterationListener initRun(JMeterContext threadContext)
 	{
+		// variables are set at this point
+		test.traverse(compiler);
 		threadVars.putObject(VAR_IS_SAME_USER_KEY, isSameUserOnNextIteration);
 		// save all previous found variables (from compiler) into the thread
 		threadVars.putAll(threadContext.getVariables());
@@ -964,9 +949,15 @@ public class XLTJMeterEngine extends StandardJMeterEngine
 		threadContext.setThreadNum(1);
 		XLTJMeterUtils.setLastSampleOk(threadVars, true);
 		threadContext.setEngine(this);
-		
-		// variables are set at this point
-		test.traverse(compiler);
+
+		SearchByClass<ThroughputController> throughputController = new SearchByClass<>(ThroughputController.class);
+		test.traverse(throughputController);
+
+		SearchByClass<RandomVariableConfig> randomVariableConfigs = new SearchByClass<>(RandomVariableConfig.class);
+		test.traverse(randomVariableConfigs);
+
+		// randomVariablesConfigs contains duplicates, we care only about the values, hence we are transforming it to a set
+		adjustThroughputControllersProbabilities(throughputController.getSearchResults(), new HashSet<>(randomVariableConfigs.getSearchResults()));
 
 		/*
 		 * Setting SamplingStarted before the controllers are initialized allows
@@ -980,6 +971,76 @@ public class XLTJMeterEngine extends StandardJMeterEngine
 		mainController.addIterationListener(iterationListener);
 
 		return iterationListener;
+	}
+
+	/**
+	 * Iterates through a collection of {@link ThroughputController}, and if it is a controller that marked as `Percentage Execution` then adjust the probability of the controller accordingly.
+	 * The new probability is being shifted by 50 due to the Additive smoothing from JMeter in {@link ThroughputController#decide(int, int)}
+	 * @param controllers the throughput controllers to iterate through
+	 * @param randomVariables the randomVariables that are set in JMeter
+	 */
+	private void adjustThroughputControllersProbabilities(Collection<ThroughputController> controllers, HashSet<RandomVariableConfig> randomVariables)
+	{
+		for (ThroughputController tc : controllers) {
+
+			// We only care about those throughput controllers that are executed a percentage amount of times
+			if (tc.getStyle() == ThroughputController.BYPERCENT)
+			{
+				String percentThroughput = tc.getPercentThroughput().trim();
+				/*
+				 * This is to handle the case where the percentage of the ThroughputController is being controlled from the groovy scripts, in this case
+				 * the percentage is a blank string, hence we skip it and let JMeter handle it
+				 * */
+				if (percentThroughput.isEmpty())
+				{
+					continue;
+				}
+				/*
+				 * This is to handle the JMeter global variables, we have to find the value for the given variable name and set it accordingly
+				 * */
+				else if (percentThroughput.startsWith("${"))
+				{
+					final String variableName = percentThroughput.substring(2, percentThroughput.length() - 1);
+
+
+					for (RandomVariableConfig randomVariableConfig : randomVariables)
+					{
+						if (randomVariableConfig.getVariableName().equals(variableName))
+						{
+							String minimumValue = randomVariableConfig.getMinimumValue().trim();
+							String maximumValue = randomVariableConfig.getMaximumValue().trim();
+
+							if (minimumValue.isEmpty())
+							{
+								minimumValue = String.valueOf(0);
+							}
+							else if (maximumValue.isEmpty())
+							{
+								maximumValue = String.valueOf(Integer.MAX_VALUE);
+							}
+							int min = parseValueOrDefault(minimumValue, 0);
+							int max = parseValueOrDefault(maximumValue, Integer.MAX_VALUE);
+
+							final int percentThroughputInt = XltRandom.nextInt(min, max);
+							percentThroughput = String.valueOf(percentThroughputInt);
+							break;
+						}
+					}
+
+				}
+				final int probability = XltRandom.nextInt(100);
+				final float desiredProbability = Float.parseFloat(percentThroughput);
+				if (probability <= desiredProbability)
+				{
+					// We add 50 since JMeter is doing some Additive Smoothing
+					tc.setPercentThroughput(probability + 50);
+				}
+				else
+				{
+					tc.setPercentThroughput(0);
+				}
+			}
+		}
 	}
 
 	/**
@@ -1066,5 +1127,18 @@ public class XLTJMeterEngine extends StandardJMeterEngine
 	public List<String> getActualActionNames()
 	{
 		return Collections.unmodifiableList(actionNames);
+	}
+
+	private int parseValueOrDefault(String value, int defaultValue)
+	{
+		try
+		{
+			return Integer.parseInt(value);
+		}
+		catch (NumberFormatException e)
+		{
+			// return the desired default
+			return defaultValue;
+		}
 	}
 }
